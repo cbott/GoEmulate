@@ -1,36 +1,58 @@
 package main
 
 import (
-	"fmt"
-	"image"
 	"image/color"
-	"math"
-	"math/rand"
-	"os"
 	"time"
-
-	_ "image/png"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 )
 
-func loadPicture(path string) (pixel.Picture, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
+const FramesPerSecond = 60.0
+const CyclesPerFrame = CpuSpeed / int(FramesPerSecond)
+
+type Gameboy struct {
+	cpu    *CpuRegisters
+	memory *Memory
+
+	// TODO: re-evaluate this matrix
+	// Matrix of pixel data which is used while the screen is rendering. When a
+	// frame has been completed, this data is copied into the PreparedData matrix.
+	screenData [ScreenWidth][ScreenHeight][3]uint8
+
+	// PreparedData is a matrix of screen pixel data for a single frame which has
+	// been fully rendered.
+	PreparedData [ScreenWidth][ScreenHeight][3]uint8
+
+	// scan is the horizontal "position" in clock cycles where the PPU is currently drawing
+	// TODO: should this be stored in the PPU object if we make one?
+	currentScanX int
+}
+
+func (gb *Gameboy) popPC() uint8 {
+	pc := gb.cpu.get_register16("PC")
+	gb.cpu.set_register16("PC", pc+1)
+	return gb.memory.get(pc)
+}
+
+func (gb *Gameboy) RunNextFrame() {
+	// Run Gameboy processes up to the next complete frame to be displayed
+	for totalCycles := 0; totalCycles < CyclesPerFrame; {
+		operationCycles := gb.RunNextOpcode()
+		gb.RunGraphicsProcess(operationCycles)
+		totalCycles += operationCycles
 	}
-	defer file.Close()
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-	return pixel.PictureDataFromImage(img), nil
+}
+
+func (gb *Gameboy) RunNextOpcode() int {
+	// Returns the number of clock cycles to complete (4MHz cycles)
+	opcode := gb.popPC()
+	return gb.Opcode(opcode) * 4
 }
 
 func run() {
 	cfg := pixelgl.WindowConfig{
-		Title:  "New Window",
+		Title:  "Game Boy Emulator",
 		Bounds: pixel.R(0, 0, 1024, 768),
 		// VSync:  true,
 	}
@@ -40,77 +62,25 @@ func run() {
 	}
 	// win.SetSmooth(true)
 
-	spritesheet, err := loadPicture("trees.png")
-	if err != nil {
-		panic(err)
+	var gb = Gameboy{}
+
+	// TODO: I think cpu init shouldn't run until after bootrom
+	gb.cpu.Init()
+	gb.memory.Init()
+
+	picture := &pixel.PictureData{
+		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),
+		Stride: ScreenWidth,
+		Rect:   pixel.R(0, 0, ScreenWidth, ScreenHeight),
 	}
-	batch := pixel.NewBatch(&pixel.TrianglesData{}, spritesheet)
 
-	var treesFrames []pixel.Rect
-	for x := spritesheet.Bounds().Min.X; x < spritesheet.Bounds().Max.X; x += 32 {
-		for y := spritesheet.Bounds().Min.Y; y < spritesheet.Bounds().Max.Y; y += 32 {
-			treesFrames = append(treesFrames, pixel.R(x, y, x+32, y+32))
-		}
-	}
-
-	var (
-		camPos       = pixel.ZV
-		camSpeed     = 500.0
-		camZoom      = 1.0
-		camZoomSpeed = 1.2
-	)
-
-	var (
-		frames = 0
-		second = time.Tick(time.Second)
-	)
-
-	// set background color
-	c := color.RGBA{0, 134, 55, 1}
-
-	last := time.Now()
+	// Ticker will execute once per Gameboy frame
+	ticker := time.NewTicker(time.Second / FramesPerSecond)
 
 	for !win.Closed() {
-		dt := time.Since(last).Seconds()
-		last = time.Now()
-
-		// move the camera with arrow keys
-		if win.Pressed(pixelgl.KeyLeft) {
-			camPos.X -= camSpeed * dt
-		}
-		if win.Pressed(pixelgl.KeyRight) {
-			camPos.X += camSpeed * dt
-		}
-		if win.Pressed(pixelgl.KeyDown) {
-			camPos.Y -= camSpeed * dt
-		}
-		if win.Pressed(pixelgl.KeyUp) {
-			camPos.Y += camSpeed * dt
-		}
-
-		// zoom with scroll
-		camZoom *= math.Pow(camZoomSpeed, win.MouseScroll().Y)
-
-		// set the camera
-		cam := pixel.IM.Scaled(camPos, camZoom).Moved(win.Bounds().Center().Sub(camPos))
-		win.SetMatrix(cam)
-
-		if win.JustPressed(pixelgl.MouseButtonLeft) {
-			tree := pixel.NewSprite(spritesheet, treesFrames[rand.Intn(len(treesFrames))])
-			mouse := cam.Unproject(win.MousePosition())
-			tree.Draw(batch, pixel.IM.Scaled(pixel.ZV, 4).Moved(mouse))
-		}
-
-		win.Clear(c)
-		batch.Draw(win)
-
-		win.Update()
-
-		frames++
 		select {
-		case <-second:
-			win.SetTitle(fmt.Sprintf("%s | FPS: %d", cfg.Title, frames))
-			frames = 0
+		case <-ticker.C:
+			gb.RunNextFrame()
 		default:
 		}
 	}

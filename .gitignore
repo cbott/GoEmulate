@@ -20,3 +20,6 @@ GoEmulate
 
 # Go workspace file
 go.work
+
+# ROM files
+roms/

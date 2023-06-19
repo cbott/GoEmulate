@@ -11,6 +11,14 @@ https://github.com/trekawek/coffee-gb
 Rust GB emulator
 https://github.com/Gekkio/mooneye-gb/tree/master
 
+
+GB docs:
+- http://bgb.bircd.org/pandocs.htm#cpuinstructionset
+- http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
+- https://pastraiser.com/cpu/gameboy/gameboy_opcodes.html
+
+
+
 > Setup
 Per pixel requirements https://github.com/faiface/pixel#requirements
 - sudo apt install libgl1-mesa-dev
