@@ -11,6 +11,8 @@ https://github.com/trekawek/coffee-gb
 Rust GB emulator
 https://github.com/Gekkio/mooneye-gb/tree/master
 
+C GB emulator
+https://github.com/AntonioND/giibiiadvance/blob/master/source/gb_core/cpu.c#L330
 
 GB docs:
 - http://bgb.bircd.org/pandocs.htm#cpuinstructionset
@@ -27,3 +29,15 @@ Per pixel requirements https://github.com/faiface/pixel#requirements
 go get .
 go build
 ./GoEmulate
+
+
+------
+DAA = Decimal Adjust after Addition
+BCD = Binary Coded Decimal
+
+
+TODO:
+-----
+Add unit tests, for example things like
+- perform an add and check carry bit is set
+- perform an add and check carry bit is added in

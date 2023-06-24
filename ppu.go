@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // Pixel Processing Unit
 
 /*
@@ -110,18 +112,18 @@ const (
 	CyclesPerLine       = 114 * 4 // The rest of the cycles in a non-vblank line are h-blank
 )
 
-const (
-	DisplayModeHBlank        = 0b00
-	DisplayModeVBlank        = 0b01
-	DisplayModeOAMSearch     = 0b10
-	DisplayModePixelTransfer = 0b11
-)
-
 // Tile data is stored in VRAM starting at 0x8000 for Sprite tiles
 // and either 0x8000 or 0x8800 for Background tiles (LCDC_tile_data_select)
 const (
 	TileDataAddressLow  = 0x8000
 	TileDataAddressHigh = 0x8800
+)
+
+const (
+	DisplayModeHBlank        = 0b00
+	DisplayModeVBlank        = 0b01
+	DisplayModeOAMSearch     = 0b10
+	DisplayModePixelTransfer = 0b11
 )
 
 func (gb *Gameboy) GetDisplayMode() uint8 {
@@ -135,14 +137,14 @@ func (gb *Gameboy) SetDisplayMode(mode uint8) {
 }
 
 func (gb *Gameboy) RunGraphicsProcess(cycles int) {
-	// TODO: move to proper file
 	status := gb.memory.get(STAT)
 	currentLine := gb.memory.get(LY)
 	mode := gb.GetDisplayMode()
 
 	if (gb.memory.get(LCDC) & LCDC_display_enable) == 0 {
 		// LCD is not enabled
-		panic("lcd not enabled not implemented")
+		fmt.Println("lcd not enabled not implemented")
+		return
 	}
 
 	var newMode uint8
@@ -369,5 +371,4 @@ func getColorFromPalette(colorIndex uint8, palette uint8) (uint8, uint8, uint8) 
 }
 
 func (gb *Gameboy) renderLineSprites(lineNumber uint8) {
-	return
 }

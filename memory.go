@@ -35,7 +35,8 @@ var BootRom = [0x100]uint8{
 type Memory struct {
 	memory    [0xFFFF]uint8
 	cartridge Cartridge
-	bootrom   [0xFF]uint8
+	bootrom   [0x100]uint8
+	booted    bool
 }
 
 func (m *Memory) set(address uint16, value uint8) {
@@ -44,9 +45,19 @@ func (m *Memory) set(address uint16, value uint8) {
 
 func (m *Memory) get(address uint16) uint8 {
 	if address < CartridgeEndAddress {
+		if !m.booted {
+			if address < 0xFF {
+				return m.bootrom[address]
+			}
+			panic("Attempted to access cartridge before one is loaded")
+		}
 		return m.cartridge.ReadFrom(address)
 	}
 	return m.memory[address]
+}
+
+func (m *Memory) LoadBootROM() {
+	m.bootrom = BootRom
 }
 
 func (m *Memory) LoadROMFile(filename string) {
