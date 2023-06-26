@@ -70,7 +70,7 @@ func (r *CpuRegisters) get_flag(flag uint8) bool {
 	return (r.F & (1 << flag)) != 0
 }
 
-// TODO: we could just directly access these?
+// TODO: use Enum instead of string to access
 // TODO: should we be using camelCase instead of underscores in fn names?
 // TODO: "set" is kind of an overloaded word, usually indicates writing a 1, "write" is better?
 
@@ -274,7 +274,8 @@ func (r *CpuRegisters) addToRegisterHL(n uint16) {
 	r.set_register16("HL", result)
 }
 
-// Set registers to default Game Boy startup values
+// Set registers to the state they would be in after boot ROM runs
+// if skipping normal bootrom execution we can run this instead
 func (c *CpuRegisters) Init() {
 	c.set_register16("AF", 0x01B0)
 	c.set_register16("BC", 0x0013)

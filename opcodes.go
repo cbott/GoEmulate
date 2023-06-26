@@ -17,7 +17,7 @@ func (gb *Gameboy) popPC16() uint16 {
 
 func (gb *Gameboy) Opcode(opcode uint8) int {
 	// Execute a single opcode and return the number of CPU cycles it took (1MHz CPU cycles)
-	// TODO: standardize whicy type of cycle we're talking about
+	// TODO: standardize which type of cycle we're talking about
 	switch opcode {
 	//////////////// 8-bit loads ////////////////
 	case 0x3E:
@@ -351,23 +351,19 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 	//////////////// 16-bit loads ////////////////
 	case 0x01:
 		// LD BC,nn
-		// We could implement these with popPC16 but that's just extra steps
-		gb.cpu.set_register("C", gb.popPC()) // low byte
-		gb.cpu.set_register("B", gb.popPC()) // high byte
+		gb.cpu.set_register16("BC", gb.popPC16())
 		return 3
 	case 0x11:
 		// LD DE,nn
-		gb.cpu.set_register("D", gb.popPC()) // low byte
-		gb.cpu.set_register("E", gb.popPC()) // high byte
+		gb.cpu.set_register16("DE", gb.popPC16())
 		return 3
 	case 0x21:
 		// LD HL,nn
-		gb.cpu.set_register("H", gb.popPC()) // low byte
-		gb.cpu.set_register("L", gb.popPC()) // high byte
+		gb.cpu.set_register16("HL", gb.popPC16())
 		return 3
 	case 0x31:
 		// LD SP,nn
-		gb.cpu.set_register16("HL", gb.popPC16())
+		gb.cpu.set_register16("SP", gb.popPC16())
 		return 3
 	case 0xF9:
 		// LD SP,HL
@@ -379,9 +375,9 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		var pc int32 = int32(int8(gb.popPC()))
 		var sp int32 = int32(gb.cpu.get_register16("SP"))
 		gb.cpu.set_register16("HL", uint16(sp+pc))
-		// Did we overflow the lower nibble?
+		// Did we overflow the lower nybble?
 		gb.cpu.set_flag(FlagH, (sp&0x000F)+(pc&0x000F) > 0x000F)
-		// Did we overflow the upper nibble?
+		// Did we overflow the upper nybble?
 		gb.cpu.set_flag(FlagC, (sp&0x00FF)+(pc&0x00FF) > 0x00FF)
 		gb.cpu.set_flag(FlagZ, false)
 		gb.cpu.set_flag(FlagN, false)
@@ -816,9 +812,9 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		var pc int32 = int32(int8(gb.popPC()))
 		var sp int32 = int32(gb.cpu.get_register16("SP"))
 		gb.cpu.set_register16("SP", uint16(sp+pc))
-		// Did we overflow the lower nibble?
+		// Did we overflow the lower nybble?
 		gb.cpu.set_flag(FlagH, (sp&0x000F)+(pc&0x000F) > 0x000F)
-		// Did we overflow the upper nibble?
+		// Did we overflow the upper nybble?
 		gb.cpu.set_flag(FlagC, (sp&0x00FF)+(pc&0x00FF) > 0x00FF)
 		gb.cpu.set_flag(FlagZ, false)
 		gb.cpu.set_flag(FlagN, false)
@@ -855,6 +851,71 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		// DEC SP
 		gb.cpu.set_register16("SP", gb.cpu.get_register16("SP")-1)
 		return 2
+	/////////////// Rotates ////////////////////
+	case 0x07:
+		// RLCA
+		// Rotate Left and set Carry bit, register A
+		value := gb.cpu.get_register("A")
+
+		carrybit := value >> 7
+		result := (value << 1) | carrybit
+
+		gb.cpu.set_register("A", result)
+		gb.cpu.set_flag(FlagZ, false)
+		gb.cpu.set_flag(FlagN, false)
+		gb.cpu.set_flag(FlagH, false)
+		gb.cpu.set_flag(FlagC, carrybit == 1)
+		return 1
+	case 0x17:
+		// RLA
+		// Rotate Left through carry flag, register A
+		value := gb.cpu.get_register("A")
+
+		var oldcarry uint8 = 0
+		if gb.cpu.get_flag(FlagC) {
+			oldcarry = 1
+		}
+		newcarry := value >> 7
+		result := (value << 1) | oldcarry
+
+		gb.cpu.set_register("A", result)
+		gb.cpu.set_flag(FlagZ, false)
+		gb.cpu.set_flag(FlagN, false)
+		gb.cpu.set_flag(FlagH, false)
+		gb.cpu.set_flag(FlagC, newcarry == 1)
+		return 1
+	case 0x0F:
+		// RRCA
+		// Rotate Right and set Carry bit, register A
+		value := gb.cpu.get_register("A")
+
+		carrybit := value & 1
+		result := (value >> 1) | (carrybit << 7)
+
+		gb.cpu.set_register("A", result)
+		gb.cpu.set_flag(FlagZ, false)
+		gb.cpu.set_flag(FlagN, false)
+		gb.cpu.set_flag(FlagH, false)
+		gb.cpu.set_flag(FlagC, carrybit == 1)
+		return 1
+	case 0x1F:
+		// RRA
+		// Rotate Right through carry bit, register A
+		value := gb.cpu.get_register("A")
+
+		var oldcarry uint8 = 0
+		if gb.cpu.get_flag(FlagC) {
+			oldcarry = 1
+		}
+		newcarry := value & 1
+		result := (value >> 1) | (oldcarry << 7)
+
+		gb.cpu.set_register("A", result)
+		gb.cpu.set_flag(FlagZ, false)
+		gb.cpu.set_flag(FlagN, false)
+		gb.cpu.set_flag(FlagH, false)
+		gb.cpu.set_flag(FlagC, newcarry == 1)
+		return 1
 	/////////////// Misc ////////////////////
 	case 0x27:
 		// DAA
@@ -864,21 +925,21 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		if gb.cpu.get_flag(FlagN) {
 			// Previous operation was subtraction
 			if gb.cpu.get_flag(FlagH) {
-				// Underflow lower nibble
+				// Underflow lower nybble
 				a -= 0x6
 			}
 			if gb.cpu.get_flag(FlagC) {
-				// Underflow upper nibble
+				// Underflow upper nybble
 				a -= 0x60
 			}
 		} else {
 			// Previous operation was addition
 			if (a&0xF) > 0x9 || gb.cpu.get_flag(FlagH) {
-				// Overflow lower nibble
+				// Overflow lower nybble
 				a += 0x6
 			}
 			if a > 0x9F || gb.cpu.get_flag(FlagC) {
-				// Overflow upper nibble
+				// Overflow upper nybble
 				a += 0x60
 				gb.cpu.set_flag(FlagC, true)
 			}
@@ -916,9 +977,224 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		return 1
 	// TODO: implement halt, stop, others
 	/////////////// Jumps ////////////////////
-
-	// TODO: Handle intentionally unimplemented opcodes (should get treated as a halt?)
+	case 0xC3:
+		// JP nn
+		gb.cpu.set_register16("PC", gb.popPC16())
+		return 4
+	case 0xC2:
+		// JP NZ,nn
+		adr := gb.popPC16()
+		if !gb.cpu.get_flag(FlagZ) {
+			gb.cpu.set_register16("PC", adr)
+			return 4
+		}
+		return 3
+	case 0xCA:
+		// JP Z,nn
+		adr := gb.popPC16()
+		if gb.cpu.get_flag(FlagZ) {
+			gb.cpu.set_register16("PC", adr)
+			return 4
+		}
+		return 3
+	case 0xD2:
+		// JP NC,nn
+		adr := gb.popPC16()
+		if !gb.cpu.get_flag(FlagC) {
+			gb.cpu.set_register16("PC", adr)
+			return 4
+		}
+		return 3
+	case 0xDA:
+		// JP C,nn
+		adr := gb.popPC16()
+		if gb.cpu.get_flag(FlagC) {
+			gb.cpu.set_register16("PC", adr)
+			return 4
+		}
+		return 3
+	case 0xE9:
+		// JP HL
+		gb.cpu.set_register16("PC", gb.cpu.get_register16("HL"))
+		return 1
+	case 0x18:
+		// JR n
+		// Relative Jump, n is a signed 8-bit immediate value
+		var n int32 = int32(int8(gb.popPC()))
+		// Using value of PC after incrementing
+		var pc int32 = int32(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", uint16(pc+n))
+		return 3
+	case 0x20:
+		// JR NZ,n
+		// Conditional Relative Jump, n is a signed 8-bit immediate value
+		var n int32 = int32(int8(gb.popPC()))
+		if !gb.cpu.get_flag(FlagZ) {
+			var pc int32 = int32(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", uint16(pc+n))
+			return 3
+		}
+		return 2
+	case 0x28:
+		// JR Z,n
+		// Conditional Relative Jump, n is a signed 8-bit immediate value
+		var n int32 = int32(int8(gb.popPC()))
+		if gb.cpu.get_flag(FlagZ) {
+			var pc int32 = int32(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", uint16(pc+n))
+			return 3
+		}
+		return 2
+	case 0x30:
+		// JR NC,n
+		// Conditional Relative Jump, n is a signed 8-bit immediate value
+		var n int32 = int32(int8(gb.popPC()))
+		if !gb.cpu.get_flag(FlagC) {
+			var pc int32 = int32(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", uint16(pc+n))
+			return 3
+		}
+		return 2
+	case 0x38:
+		// JR C,n
+		// Conditional Relative Jump, n is a signed 8-bit immediate value
+		var n int32 = int32(int8(gb.popPC()))
+		if gb.cpu.get_flag(FlagC) {
+			var pc int32 = int32(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", uint16(pc+n))
+			return 3
+		}
+		return 2
+	case 0xCD:
+		// CALL nn
+		nn := gb.popPC16()
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", nn)
+		return 6
+	case 0xC4:
+		// CALL NZ,nn
+		nn := gb.popPC16()
+		if !gb.cpu.get_flag(FlagZ) {
+			gb.pushToStack16(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", nn)
+			return 6
+		}
+		return 3
+	case 0xCC:
+		// CALL Z,nn
+		nn := gb.popPC16()
+		if gb.cpu.get_flag(FlagZ) {
+			gb.pushToStack16(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", nn)
+			return 6
+		}
+		return 3
+	case 0xD4:
+		// CALL NC,nn
+		nn := gb.popPC16()
+		if !gb.cpu.get_flag(FlagC) {
+			gb.pushToStack16(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", nn)
+			return 6
+		}
+		return 3
+	case 0xDC:
+		// CALL C,nn
+		nn := gb.popPC16()
+		if gb.cpu.get_flag(FlagC) {
+			gb.pushToStack16(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", nn)
+			return 6
+		}
+		return 3
+	case 0xC7:
+		// RST 00H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x00)
+		return 4
+	case 0xCF:
+		// RST 08H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x08)
+		return 4
+	case 0xD7:
+		// RST 10H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x10)
+		return 4
+	case 0xDF:
+		// RST 18H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x18)
+		return 4
+	case 0xE7:
+		// RST 20H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x20)
+		return 4
+	case 0xEF:
+		// RST 28H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x28)
+		return 4
+	case 0xF7:
+		// RST 30H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x30)
+		return 4
+	case 0xFF:
+		// RST 38H
+		gb.pushToStack16(gb.cpu.get_register16("PC"))
+		gb.cpu.set_register16("PC", 0x38)
+		return 4
+	case 0xC9:
+		// RET
+		gb.cpu.set_register16("PC", gb.popFromStack())
+		return 2
+	case 0xC0:
+		// RET NZ
+		if !gb.cpu.get_flag(FlagZ) {
+			gb.cpu.set_register16("PC", gb.popFromStack())
+			return 5
+		}
+		return 2
+	case 0xC8:
+		// RET Z
+		if gb.cpu.get_flag(FlagZ) {
+			gb.cpu.set_register16("PC", gb.popFromStack())
+			return 5
+		}
+		return 2
+	case 0xD0:
+		// RET NC
+		if !gb.cpu.get_flag(FlagC) {
+			gb.cpu.set_register16("PC", gb.popFromStack())
+			return 5
+		}
+		return 2
+	case 0xD8:
+		// RET C
+		if !gb.cpu.get_flag(FlagC) {
+			gb.cpu.set_register16("PC", gb.popFromStack())
+			return 5
+		}
+		return 2
+	case 0xD9:
+		// RETI
+		// Return and enable interrupts
+		gb.cpu.set_register16("PC", gb.popFromStack())
+		gb.interruptMasterEnable = true
+		return 2
+	////////////// CB - Extended Instructions /////////////
+	case 0xCB:
+		// CB
+		// TODO: We could also handle this by just setting a flag to indicate that the
+		// last opcode was CB and then dispatch that when this function is called again
+		// to allow other processes to occur between them
+		next_opcode := gb.popPC()
+		return gb.CBOpcode(next_opcode) + 1
+	// TODO: Handle intentionally unimplemented opcodes (should crash Gameboy, but maybe handle gracefully)
 	default:
-		panic(fmt.Sprintf("opcode %X not implemented", opcode))
+		panic(fmt.Sprintf("opcode 0x%X not implemented", opcode))
 	}
 }

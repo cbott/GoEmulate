@@ -10,7 +10,11 @@ import (
 | ROM (cartridge) | Video RAM | External RAM | RAM      | Unused     | OAM RAM | Unused | I/O   | HRAM
 */
 
-const CartridgeEndAddress = 0x8000
+const (
+	CartridgeEndAddress = 0x8000
+	// Memory address of flag indicating whether to load from Boot ROM or cartrige address space
+	BOOT = 0xFF50
+)
 
 // Game Boy boot ROM program
 var BootRom = [0x100]uint8{
@@ -33,10 +37,9 @@ var BootRom = [0x100]uint8{
 }
 
 type Memory struct {
-	memory    [0xFFFF]uint8
+	memory    [0x10000]uint8
 	cartridge Cartridge
 	bootrom   [0x100]uint8
-	booted    bool
 }
 
 func (m *Memory) set(address uint16, value uint8) {
@@ -44,11 +47,12 @@ func (m *Memory) set(address uint16, value uint8) {
 }
 
 func (m *Memory) get(address uint16) uint8 {
+	if (address < 0x100) && (m.memory[BOOT] == 0) {
+		// Address space 0-FF is mapped to Boot ROM untill fully booted
+		return m.bootrom[address]
+	}
 	if address < CartridgeEndAddress {
-		if !m.booted {
-			if address < 0xFF {
-				return m.bootrom[address]
-			}
+		if m.cartridge == nil {
 			panic("Attempted to access cartridge before one is loaded")
 		}
 		return m.cartridge.ReadFrom(address)
