@@ -19,11 +19,12 @@ func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[Scr
 
 	// TODO: figure out why we're doing this
 	// Seems like sprites should just go over it all
-	bg := color.RGBA{R: 0x08, G: 0x18, B: 0x20, A: 0xFF}
+	// bg := color.RGBA{R: 0x08, G: 0x18, B: 0x20, A: 0xFF}
+	bg := color.RGBA{R: 0xB0, G: 0x00, B: 0x00, A: 0xFF}
 	window.Clear(bg)
 
 	sprite := pixel.NewSprite(pixel.Picture(picture), pixel.R(0, 0, ScreenWidth, ScreenHeight))
-	sprite.Draw(window, pixel.IM)
+	sprite.Draw(window, pixel.IM.Moved(window.Bounds().Center()))
 
 	window.Update()
 }
@@ -51,7 +52,7 @@ func run() {
 	gb := CreateGameBoy()
 
 	// TODO: Allow for skipping boot ROM if we want
-	gb.memory.Init()
+	// gb.memory.Init()
 	gb.memory.LoadROMFile("roms/tetris.gb")
 
 	picture := &pixel.PictureData{

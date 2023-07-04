@@ -59,8 +59,8 @@ FF47   [BGP] Background Palette
  0-1   - color for 0b00
 FF48   [OBP0] Object Palette 0
 FF49   [OBP2] Object Palette 1
-FF4A   [WX] Window Y Position
-FF4B   [WY] Window X Position minus 7 (WX=7 corresponds to starting all the way on the left at column 0)
+FF4A   [WY] Window Y Position
+FF4B   [WX] Window X Position minus 7 (WX=7 corresponds to starting all the way on the left at column 0)
 */
 
 const (
@@ -80,8 +80,8 @@ const (
 	BGP  = 0xFF47
 	OBP0 = 0xFF48
 	OBP1 = 0xFF49
-	WX   = 0xFF4A
-	WY   = 0xFF4B
+	WY   = 0xFF4A
+	WX   = 0xFF4B
 )
 
 const (
@@ -128,7 +128,7 @@ const (
 
 func (gb *Gameboy) GetDisplayMode() uint8 {
 	// Read mode from the LCD Status register
-	return gb.memory.get(STAT) | 0b11
+	return gb.memory.get(STAT) & 0b11
 }
 
 func (gb *Gameboy) SetDisplayMode(mode uint8) {
@@ -331,10 +331,10 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 		// pixelColor is the 2-bit value that we use to index into palette to get the displayed color
 		var pixelColor uint8 = 0b00
 		if lineLSB&(0b10000000>>columnInTile) != 0 {
-			pixelColor &= 0b01
+			pixelColor |= 0b01
 		}
 		if lineMSB&(0b10000000>>columnInTile) != 0 {
-			pixelColor &= 0b10
+			pixelColor |= 0b10
 		}
 
 		// Keep track of which pixels in this row used palette color 0, as these will be drawn
