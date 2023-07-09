@@ -15,8 +15,8 @@ func (gb *Gameboy) popPC16() uint16 {
 	return msb<<8 | lsb
 }
 
+// Execute a single opcode and return the number of CPU cycles it took (1MHz CPU cycles)
 func (gb *Gameboy) Opcode(opcode uint8) int {
-	// Execute a single opcode and return the number of CPU cycles it took (1MHz CPU cycles)
 	// TODO: standardize which type of cycle we're talking about
 	switch opcode {
 	//////////////// 8-bit loads ////////////////
@@ -920,7 +920,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 	case 0x27:
 		// DAA
 		// Decimal adjust register A for binary coded decimal after an add or subtract
-		a := gb.cpu.get_register("A")
+		a := uint16(gb.cpu.get_register("A"))
 
 		if gb.cpu.get_flag(FlagN) {
 			// Previous operation was subtraction
@@ -944,9 +944,9 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 				gb.cpu.set_flag(FlagC, true)
 			}
 		}
-		gb.cpu.set_flag(FlagZ, a == 0)
+		gb.cpu.set_flag(FlagZ, uint8(a) == 0)
 		gb.cpu.set_flag(FlagH, false)
-		gb.cpu.set_register("A", a)
+		gb.cpu.set_register("A", uint8(a))
 		return 1
 	case 0x2F:
 		// CPL
@@ -973,9 +973,25 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		gb.cpu.set_flag(FlagC, true)
 		return 1
 	case 0x00:
-		// NOOP
+		// NOP
 		return 1
-	// TODO: implement halt, stop, others
+	case 0xF3:
+		// DI
+		// Disable Interrupts
+		// based on available documentation it seems that Game Boy Color and later models
+		// introduce a delay here, but DMG disables interrupts immediately
+		gb.interruptMasterEnable = false
+		return 1
+	case 0xFB:
+		// EI
+		// Enable Interrupts
+		gb.pendingInterruptEnable = true
+		return 1
+	case 0x76:
+		// HALT
+		gb.halted = true
+		return 1
+	// TODO: implement stop, others
 	/////////////// Jumps ////////////////////
 	case 0xC3:
 		// JP nn

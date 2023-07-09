@@ -17,7 +17,7 @@ func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[Scr
 		}
 	}
 
-	// TODO: figure out why we're doing this
+	// TODO: figure out why we're doing this, for now just clearing with red so we see if it is a problem
 	// Seems like sprites should just go over it all
 	// bg := color.RGBA{R: 0x08, G: 0x18, B: 0x20, A: 0xFF}
 	bg := color.RGBA{R: 0xB0, G: 0x00, B: 0x00, A: 0xFF}
@@ -33,7 +33,8 @@ func CreateGameBoy() *Gameboy {
 	var gb = Gameboy{}
 	gb.cpu = &CpuRegisters{}
 	gb.memory = &Memory{}
-	gb.memory.LoadBootROM()
+	gb.memory.Init()
+	// TODO: Does interrupt master enable default to True?
 	return &gb
 }
 
@@ -52,8 +53,14 @@ func run() {
 	gb := CreateGameBoy()
 
 	// TODO: Allow for skipping boot ROM if we want
-	// gb.memory.Init()
-	gb.memory.LoadROMFile("roms/tetris.gb")
+	skipBoot := true
+
+	if skipBoot {
+		gb.memory.set(BOOT, 1)
+		gb.memory.BypassBootROM()
+		gb.cpu.BypassBootROM()
+	}
+	gb.memory.LoadROMFile("roms/blargg/cpu_instrs.gb")
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),

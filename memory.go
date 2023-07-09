@@ -107,12 +107,16 @@ var BootRom = [0x100]uint8{
 	0x1E, 0xC1, // LD E $C1
 	0xFE, 0x64, // CP A,$64
 	0x20, 0x06, // JR NZ,$06 -- jump to 86
+
+	// Play sound
 	// 80
 	0x7B,       // LD A,E
 	0xE2,       // LD ($FF00+C),A
 	0x0C,       // INC C
 	0x3E, 0x87, // LD A $87
 	0xE2, // LD ($FF00+C),A
+
+	// Scroll logo
 	// 86
 	0xF0, 0x42, // LD A,($FF42) -- Store SCY to A
 	0x90,       // SUB B -- Subtract B from A
@@ -146,27 +150,48 @@ type Memory struct {
 	memory    [0x10000]uint8
 	cartridge Cartridge
 	bootrom   [0x100]uint8
+
+	// Internal counter to keep track of when the DIV register should increment
+	divAccumulator int
 }
 
+// Write a value to memory
 func (m *Memory) set(address uint16, value uint8) {
-	m.memory[address] = value
+	if address == DIV {
+		// Writing any value to the DIV register sets it to 0
+		m.divAccumulator = 0
+		m.memory[address] = 0
+	} else {
+		m.memory[address] = value
+	}
 }
 
+// Read a value from memory
 func (m *Memory) get(address uint16) uint8 {
+	// Address space 0-FF is mapped to Boot ROM untill fully booted
 	if (address < 0x100) && (m.memory[BOOT] == 0) {
-		// Address space 0-FF is mapped to Boot ROM untill fully booted
 		return m.bootrom[address]
 	}
+
+	// Address space 0-8000 is mapped to the cartridge
 	if address < CartridgeEndAddress {
 		if m.cartridge == nil {
 			panic("Attempted to access cartridge before one is loaded")
 		}
 		return m.cartridge.ReadFrom(address)
 	}
+
+	// Top 3 bits of IF register are unused and always read high
+	// TODO: confirm if that's true or if they just default high on startup
+	if address == IF {
+		return m.memory[address] | 0b11100000
+	}
+
+	// In most cases we just read a raw value
 	return m.memory[address]
 }
 
-func (m *Memory) LoadBootROM() {
+func (m *Memory) Init() {
 	m.bootrom = BootRom
 }
 
@@ -181,7 +206,7 @@ func (m *Memory) LoadROMFile(filename string) {
 
 // Set memory to the state it would be in after boot ROM runs
 // if skipping normal bootrom execution we can run this instead
-func (m *Memory) Init() {
+func (m *Memory) BypassBootROM() {
 	// TODO: figure out what these constants mean
 	// switch to setting by register name like m.set(SCY, 0)
 	m.set(0xFF05, 0x00) // TIMA
@@ -210,8 +235,6 @@ func (m *Memory) Init() {
 	m.set(0xFF43, 0x00) // SCX
 	m.set(0xFF45, 0x00) // LYC
 	m.set(0xFF47, 0xFC) // BGP
-	m.set(0xFF48, 0xFF) // OBP0
-	m.set(0xFF49, 0xFF) // OBP1
 	m.set(0xFF4A, 0x00) // WY
 	m.set(0xFF4B, 0x00) // WX
 	m.set(0xFFFF, 0x00) // Interrupt Enable register

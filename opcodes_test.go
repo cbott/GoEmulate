@@ -18,7 +18,8 @@ type teststructure struct {
 func TestDAA(t *testing.T) {
 	var testcases = []teststructure{
 		{0x99, false, false, false, 0x99, false, false, false},
-		{0x00, false, false, false, 0x00, false, false, false},
+		{0xFA, false, false, false, 0x60, false, false, true},
+		{0x00, false, false, false, 0x00, true, false, false},
 		{0x00, false, true, true, 0x66, false, false, true},
 		{0x9A, false, false, false, 0x00, true, false, true},
 		{0x9A, true, false, false, 0x9A, false, false, false},
@@ -41,7 +42,7 @@ func TestDAA(t *testing.T) {
 		finalH := gb.cpu.get_flag(FlagH)
 		finalC := gb.cpu.get_flag(FlagC)
 
-		if finalValue != testcase.finalValue || finalH != testcase.finalH || finalC != testcase.finalC {
+		if finalValue != testcase.finalValue || finalZ != testcase.finalZ || finalH != testcase.finalH || finalC != testcase.finalC {
 			t.Fatalf("DAA operation on {A=0x%x, N=%t, H=%t, C=%t} resulted in {A=0x%x, Z=%t, H=%t, C=%t}, expected {A=0x%x, Z=%t, H=%t, C=%t}",
 				testcase.initialValue, testcase.initialN, testcase.initialH, testcase.initialC,
 				finalValue, finalZ, finalH, finalC,

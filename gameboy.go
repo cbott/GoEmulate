@@ -20,8 +20,15 @@ type Gameboy struct {
 	// TODO: should this be stored in the PPU object if we make one?
 	currentScanX int
 
+	// Internal counter to keep track of when the DIV register should increment
+	timerAccumulator int
+
+	// When halted CPU will not execute instructions except for interrupts
+	halted bool
 	// Interrupt Master Enable sets whether interrupts are enabled globally
 	interruptMasterEnable bool
+	// Some instructions set interrupt state with a 1 operation delay, these bools track that state
+	pendingInterruptEnable bool
 }
 
 // TODO: Move all *Gameboy functions to a separate file
@@ -60,16 +67,25 @@ func (gb *Gameboy) popFromStack() uint16 {
 func (gb *Gameboy) RunNextFrame() {
 	// Run Gameboy processes up to the next complete frame to be displayed
 	for totalCycles := 0; totalCycles < CyclesPerFrame; {
-		operationCycles := gb.RunNextOpcode()
+		var operationCycles int
+		if gb.halted {
+			// TODO: verify this is the correct behavior while halted
+			operationCycles = 4
+		} else {
+			operationCycles = gb.RunNextOpcode()
+		}
+
 		gb.RunGraphicsProcess(operationCycles)
-		// TODO: handle hardware timers
+		gb.RunTimers(operationCycles)
+
+		// TODO: see if we have to count these extra cycles for other stuff?
 		totalCycles += operationCycles
-		// TODO: totalCycles += run interrupt service routines
+		totalCycles += gb.RunInterrupts()
 	}
 }
 
+// Returns the number of clock cycles to complete (4MHz cycles)
 func (gb *Gameboy) RunNextOpcode() int {
-	// Returns the number of clock cycles to complete (4MHz cycles)
 	opcode := gb.popPC()
 	return gb.Opcode(opcode) * 4
 }

@@ -14,16 +14,70 @@ const (
 )
 
 // These are the addresses the CPU will jump to when executing the interrupt
-const (
-	InterruptVBlankAddress  = 0x40
-	InterruptLCDStatAddress = 0x48
-	InterruptTimerAddress   = 0x50
-	InterruptSerialAddress  = 0x58
-	InterruptJoypadAddress  = 0x60
-)
+var interruptAddresses = [5]uint16{
+	0x0040, // VBlank Address
+	0x0048, // LCDStat Address
+	0x0050, // Timer Address
+	0x0058, // Serial Address
+	0x0060, // Joypad Address
+}
 
+// Sets a bit in the interrupt flag register, which will trigger an interrupt
+// if the Interrupt Enable register and Interrupt Master Enable flag allow it
 func (gb *Gameboy) SetInterruptRequestFlag(flag uint8) {
-	// Sets a bit in the interrupt flag register, which will trigger an interrupt
-	// if the Interrupt Enable register and Interrupt Master Enable flag allow it
 	gb.memory.set(IF, gb.memory.get(IF)|flag)
+}
+
+// Run interrupts for the processor and return number of cycles it took (4 MHz clock cycles)
+func (gb *Gameboy) RunInterrupts() int {
+	request := gb.memory.get(IF)
+	enabled := gb.memory.get(IE)
+
+	// Determine if CPU should resume from a HALT. This can happen even if MasterEnable is false
+	if gb.halted {
+		if (request&enabled)&0b00011111 != 0 {
+			gb.halted = false
+		}
+	}
+
+	if gb.pendingInterruptEnable {
+		// If delayed enable request was made, enable but do not process interrupts until next time
+		gb.pendingInterruptEnable = false
+		if !gb.interruptMasterEnable {
+			gb.interruptMasterEnable = true
+			return 0
+		}
+	}
+
+	if !gb.interruptMasterEnable {
+		return 0
+	}
+
+	interruptPerformed := false
+
+	// Service each interrupt
+	for i := 0; i < 5; i++ {
+		// TODO: this is kind of messy
+		if (request&(1<<i)) != 0 && (enabled&(1<<i)) != 0 {
+			// interrupt `i` is enabled
+			// reset this bit in the interrupt flag register
+			gb.memory.set(IF, request & ^(1<<i))
+			// disable interrupts globally
+			gb.interruptMasterEnable = false
+
+			// push current PC to the stack and jump to the interrupt address
+			gb.pushToStack16(gb.cpu.get_register16("PC"))
+			gb.cpu.set_register16("PC", interruptAddresses[i])
+
+			// TODO: Do we really only process 1 interrupt each time?
+			interruptPerformed = true
+			break
+		}
+	}
+
+	if interruptPerformed {
+		// TODO: verify 20/0 is correct
+		return 20
+	}
+	return 0
 }

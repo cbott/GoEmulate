@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 // Pixel Processing Unit
 
 /*
@@ -58,7 +56,7 @@ FF47   [BGP] Background Palette
  2-3   - color for 0b01
  0-1   - color for 0b00
 FF48   [OBP0] Object Palette 0
-FF49   [OBP2] Object Palette 1
+FF49   [OBP1] Object Palette 1
 FF4A   [WY] Window Y Position
 FF4B   [WX] Window X Position minus 7 (WX=7 corresponds to starting all the way on the left at column 0)
 */
@@ -126,13 +124,13 @@ const (
 	DisplayModePixelTransfer = 0b11
 )
 
+// Read display mode from the LCD Status register
 func (gb *Gameboy) GetDisplayMode() uint8 {
-	// Read mode from the LCD Status register
 	return gb.memory.get(STAT) & 0b11
 }
 
+// Set display mode in the LCD Status register
 func (gb *Gameboy) SetDisplayMode(mode uint8) {
-	// Set display mode in the LCD Status register
 	gb.memory.set(STAT, (gb.memory.get(STAT)&0b11111100)|(mode&0b11))
 }
 
@@ -143,7 +141,8 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 
 	if (gb.memory.get(LCDC) & LCDC_display_enable) == 0 {
 		// LCD is not enabled
-		fmt.Println("lcd not enabled not implemented")
+		// TODO: verify nothing needs to run in this case
+		// fmt.Println("LCD not enabled")
 		return
 	}
 

@@ -18,7 +18,7 @@ GB docs:
 - http://bgb.bircd.org/pandocs.htm#cpuinstructionset
 - http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
 - https://pastraiser.com/cpu/gameboy/gameboy_opcodes.html
-
+- https://gbdev.io/pandocs/Specifications.html
 
 
 > Setup

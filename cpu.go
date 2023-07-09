@@ -276,7 +276,7 @@ func (r *CpuRegisters) addToRegisterHL(n uint16) {
 
 // Set registers to the state they would be in after boot ROM runs
 // if skipping normal bootrom execution we can run this instead
-func (c *CpuRegisters) Init() {
+func (c *CpuRegisters) BypassBootROM() {
 	c.set_register16("AF", 0x01B0)
 	c.set_register16("BC", 0x0013)
 	c.set_register16("DE", 0x00D8)
