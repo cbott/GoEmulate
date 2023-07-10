@@ -60,7 +60,7 @@ func run() {
 		gb.memory.BypassBootROM()
 		gb.cpu.BypassBootROM()
 	}
-	gb.memory.LoadROMFile("roms/blargg/cpu_instrs.gb")
+	gb.memory.LoadROMFile("roms/blargg/individual/09-op r,r.gb")
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),

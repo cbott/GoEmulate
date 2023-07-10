@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"os"
+)
+
 const FramesPerSecond = 60.0
 const CyclesPerFrame = CpuSpeed / int(FramesPerSecond)
 
@@ -29,6 +34,8 @@ type Gameboy struct {
 	interruptMasterEnable bool
 	// Some instructions set interrupt state with a 1 operation delay, these bools track that state
 	pendingInterruptEnable bool
+
+	debugCounter int32
 }
 
 // TODO: Move all *Gameboy functions to a separate file
@@ -86,6 +93,24 @@ func (gb *Gameboy) RunNextFrame() {
 
 // Returns the number of clock cycles to complete (4MHz cycles)
 func (gb *Gameboy) RunNextOpcode() int {
+	gb.debugCounter++
+
+	// if gb.debugCounter == 16508 {
+	// 	fmt.Printf("debug")
+	// }
+
+	if gb.debugCounter < 1000000 {
+		f, err := os.OpenFile("gb_results.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic("unable to open log")
+		}
+		defer f.Close()
+		fmt.Fprintf(f, "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
+			gb.cpu.A, gb.cpu.F, gb.cpu.B, gb.cpu.C, gb.cpu.D, gb.cpu.E, gb.cpu.H, gb.cpu.L,
+			gb.cpu.SP, gb.cpu.PC, gb.memory.get(gb.cpu.PC), gb.memory.get(gb.cpu.PC+1),
+			gb.memory.get(gb.cpu.PC+2), gb.memory.get(gb.cpu.PC+3))
+	}
+
 	opcode := gb.popPC()
 	return gb.Opcode(opcode) * 4
 }

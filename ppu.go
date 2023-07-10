@@ -22,7 +22,7 @@ OAM RAM (Object Attribute Map = Sprite details)
 FE00 - - - -
 FE04
 ...
-FEC9
+FE9C
 
 Flags: Priority, Flip X, Flip Y, Palette
 
@@ -68,6 +68,16 @@ const (
 
 // Vertical blanking lines below the screen
 const VBlankLines = 10
+
+// Sprite constants
+const (
+	MaxSprites         = 40
+	MaxSpritesPerLine  = 10
+	SpriteFlagPriority = 1 << 7
+	SpriteFlagFlipY    = 1 << 6
+	SpriteFlagFlipX    = 1 << 5
+	SpriteFlagPalette  = 1 << 4
+)
 
 const (
 	SCY  = 0xFF42
@@ -115,6 +125,7 @@ const (
 const (
 	TileDataAddressLow  = 0x8000
 	TileDataAddressHigh = 0x8800
+	OAMRamAddressStart  = 0xFE00
 )
 
 const (
@@ -141,7 +152,11 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 
 	if (gb.memory.get(LCDC) & LCDC_display_enable) == 0 {
 		// LCD is not enabled
-		// TODO: verify nothing needs to run in this case
+		gb.currentScanX = 0
+		gb.memory.set(LY, 0)
+		// TODO: Setting to OAM search will mean we don't trigger an interrupt
+		// when first enabling the LCD, not clear if that's correct
+		gb.SetDisplayMode(DisplayModeOAMSearch)
 		// fmt.Println("LCD not enabled")
 		return
 	}
@@ -157,7 +172,7 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 		// Current line is a displayed row, and current scan is in OAM Search section
 		newMode = DisplayModeOAMSearch
 		interrupt = (status & STAT_oam_interrupt) != 0
-	} else if gb.currentScanX < PixelTransferCycles {
+	} else if gb.currentScanX < PixelTransferCycles+OAMSearchCycles {
 		// Current line is a displayed row, and current scan is in Pixel Transfer section
 		newMode = DisplayModePixelTransfer
 		// There are no interrupts triggered on Pixel Transfer mode
@@ -200,7 +215,7 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 		// If we get to the end of a line, move Y coordinate down to the next row and start back at the left
 		currentLine++
 
-		if currentLine > ScreenHeight+VBlankLines {
+		if currentLine >= ScreenHeight+VBlankLines {
 			// We are past the bottom of the screen, so we've now drawn the full frame
 			gb.PreparedData = gb.screenData
 			// TODO: is this really the best way to clear it?
@@ -226,11 +241,14 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 func (gb *Gameboy) renderLine(lineNumber uint8) {
 	// Fill in a single line of the screen buffer
 	control := gb.memory.get(LCDC)
+	priority := [ScreenWidth]bool{}
+
 	if (control & LCDC_bg_enable) != 0 {
-		gb.renderLineTiles(lineNumber)
+		priority = gb.renderLineTiles(lineNumber)
 	}
+
 	if (control & LCDC_obj_enable) != 0 {
-		gb.renderLineSprites(lineNumber)
+		gb.renderLineSprites(lineNumber, priority)
 	}
 }
 
@@ -290,7 +308,8 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 
 	// Array with each value representing whether or not the corresponding pixel
 	// is drawn with pallete entry 0 and will therefore be drawn over by sprites with priority 1
-	lineBGPixelLowPriority := [ScreenWidth]bool{}
+	// Array value of 0 indicates this pixel should be drawn over
+	lineBGPixelPriority := [ScreenWidth]bool{}
 	var absoluteX uint8
 
 	// Set pixel colors for this line
@@ -318,8 +337,6 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 			tileAddress = tileDataStartAddress + uint16((int16(int8(tileNumber))+128)*16)
 		}
 
-		// TODO: are we supposed to implement X flip or Y flip for BG tiles? I think that's sprites only
-
 		// Each line in the tile is defined by 2 bytes, first byte holds the least significant bit of each pixel,
 		// second byte hold the most significant bit, bit 7 being leftmost, bit 0 rightmost
 		rowInTile := relativeY % 8
@@ -338,7 +355,7 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 
 		// Keep track of which pixels in this row used palette color 0, as these will be drawn
 		// over by sprites with priority 1
-		lineBGPixelLowPriority[absoluteX] = (pixelColor == 0b00)
+		lineBGPixelPriority[absoluteX] = (pixelColor != 0b00)
 
 		// Set the appropriate pixel of the screen buffer
 		red, green, blue := getColorFromPalette(pixelColor, palette)
@@ -346,7 +363,7 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 		gb.screenData[absoluteX][lineNumber][1] = green
 		gb.screenData[absoluteX][lineNumber][2] = blue
 	}
-	return lineBGPixelLowPriority
+	return lineBGPixelPriority
 }
 
 func getColorFromPalette(colorIndex uint8, palette uint8) (uint8, uint8, uint8) {
@@ -369,5 +386,107 @@ func getColorFromPalette(colorIndex uint8, palette uint8) (uint8, uint8, uint8) 
 	}
 }
 
-func (gb *Gameboy) renderLineSprites(lineNumber uint8) {
+func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]bool) {
+	// Check sprite sizing
+	var spriteHeight uint8 = 8 // sprites are 8x8
+	if gb.memory.get(LCDC)&LCDC_obj_size != 0 {
+		spriteHeight = 16 // sprites are 8x16
+	}
+
+	// Array to track drawn sprites to ensure those with the lowest X value are drawn on top
+	xCoordsAlreadyDrawn := [ScreenWidth]int16{}
+	for i := 0; i < ScreenWidth; i++ {
+		xCoordsAlreadyDrawn[i] = 255 // arbitrarilly set to something off-screen
+	}
+
+	// Iterate throug all sprites in OAM RAM
+	var spritesOnLine uint8
+
+	var spriteNum uint8
+	for spriteNum = 0; spriteNum < MaxSprites; spriteNum++ {
+		if spritesOnLine >= MaxSpritesPerLine {
+			break
+		}
+
+		// Index into OAM RAM
+		var index uint16 = uint16(spriteNum) * 4
+		// Y is offset by 16 (value of 16 puts the sprite fully on the screen)
+		yPos := int16(gb.memory.get(OAMRamAddressStart+index)) - 16
+		if (int16(lineNumber) < yPos) || (int16(lineNumber) >= (yPos + int16(spriteHeight))) {
+			// No part of this sprite is on the current line
+			continue
+		}
+
+		spritesOnLine++
+		// X is offset by 8 (value of 8 puts the sprite fully on the screen)
+		xPos := int16(gb.memory.get(OAMRamAddressStart+index+1)) - 8
+		tileNumber := gb.memory.get(OAMRamAddressStart + index + 2)
+		flags := gb.memory.get(OAMRamAddressStart + index + 3)
+
+		// If the sprite is flipped we need to draw starting with the bottom row instead
+		rowInTile := uint8(int16(lineNumber) - yPos)
+		if flags&SpriteFlagFlipY != 0 {
+			rowInTile = spriteHeight - rowInTile - 1
+		}
+
+		tileAddress := TileDataAddressLow + uint16(tileNumber)*16
+		lineLSB := gb.memory.get(tileAddress + uint16(rowInTile)*2)
+		lineMSB := gb.memory.get(tileAddress + uint16(rowInTile)*2 + 1)
+
+		// Draw pixels to the screen buffer
+		var columnInTile uint8
+
+		for columnInTile = 0; columnInTile < 8; columnInTile++ {
+			pixelX := xPos + int16(7-columnInTile)
+			// If the pixel is off the screen, skip
+			if pixelX < 0 || pixelX >= ScreenWidth {
+				continue
+			}
+
+			// Check if this pixel has already been drawn by a sprite with an equal or lower X position
+			// if so, we have lower priority so do not re-draw
+			if xPos >= xCoordsAlreadyDrawn[pixelX] {
+				continue
+			}
+			xCoordsAlreadyDrawn[pixelX] = xPos
+
+			// Flip X if applicable
+			columnWithFlip := columnInTile
+			if flags&SpriteFlagFlipX != 0 {
+				columnWithFlip = 7 - columnWithFlip
+			}
+
+			// Find pixel color palette index
+			var pixelColor uint8 = 0b00
+			if lineLSB&(0b10000000>>columnWithFlip) != 0 {
+				pixelColor |= 0b01
+			}
+			if lineMSB&(0b10000000>>columnWithFlip) != 0 {
+				pixelColor |= 0b10
+			}
+
+			// Skip if transparent
+			if pixelColor == 0 {
+				continue
+			}
+
+			var palette uint8
+			if flags&SpriteFlagPalette == 0 {
+				palette = gb.memory.get(OBP0)
+			} else {
+				palette = gb.memory.get(OBP1)
+			}
+
+			// If sprite priority = 0 we always draw over top of the background
+			// if priority = 1 we can only draw over background pixels which used palette entry 0
+			if (flags&SpriteFlagPriority == 0) || !bgPriority[pixelX] {
+				// Set the appropriate pixel of the screen buffer
+				red, green, blue := getColorFromPalette(pixelColor, palette)
+				gb.screenData[pixelX][lineNumber][0] = red
+				gb.screenData[pixelX][lineNumber][1] = green
+				gb.screenData[pixelX][lineNumber][2] = blue
+			}
+		}
+
+	}
 }

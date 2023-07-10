@@ -161,6 +161,9 @@ func (m *Memory) set(address uint16, value uint8) {
 		// Writing any value to the DIV register sets it to 0
 		m.divAccumulator = 0
 		m.memory[address] = 0
+	} else if address == DMA {
+		// Initiate a DMA transfer, register should never be read so we will leave it at 0
+		m.performDMATransfer(value)
 	} else {
 		m.memory[address] = value
 	}
@@ -193,6 +196,19 @@ func (m *Memory) get(address uint16) uint8 {
 
 func (m *Memory) Init() {
 	m.bootrom = BootRom
+}
+
+// Perform a DMA transfer into OAM RAM from the specified source address (divided by 0x100)
+func (m *Memory) performDMATransfer(source uint8) {
+	// TODO: We are performing this all at once for convenience
+	// should implement checks to ensure we don't access restricted memory during this time
+	// maybe make a flag that gets checked in get/set and clears after a certain number of cycles
+	source_address := uint16(source) << 8
+
+	var index uint16 = 0
+	for index = 0; index <= 0x9F; index++ {
+		m.set(OAMRamAddressStart+index, m.get(source_address+index))
+	}
 }
 
 func (m *Memory) LoadROMFile(filename string) {
