@@ -178,11 +178,14 @@ func (r *CpuRegisters) addToRegisterA(n uint8, carry bool) {
 	if carry && r.get_flag(FlagC) {
 		carrybit = 1
 	}
-	result := a + n + carrybit
+
+	long_result := uint16(a) + uint16(n) + uint16(carrybit)
+	result := uint8(long_result)
+
 	r.set_flag(FlagZ, result == 0)
 	r.set_flag(FlagN, false)
 	r.set_flag(FlagH, ((a&0xF)+(n&0xF)+carrybit) > 0xF)
-	r.set_flag(FlagC, a > result)
+	r.set_flag(FlagC, long_result > 0xFF)
 	r.set_register("A", result)
 }
 

@@ -35,7 +35,11 @@ type Gameboy struct {
 	// Some instructions set interrupt state with a 1 operation delay, these bools track that state
 	pendingInterruptEnable bool
 
-	debugCounter int32
+	// Track button presses so we can raise an interrupt on button press
+	joypadState uint8
+
+	screenCleared bool
+	debugCounter  int32
 }
 
 // TODO: Move all *Gameboy functions to a separate file
@@ -99,7 +103,7 @@ func (gb *Gameboy) RunNextOpcode() int {
 	// 	fmt.Printf("debug")
 	// }
 
-	if gb.debugCounter < 1000000 {
+	if gb.debugCounter < 0 {
 		f, err := os.OpenFile("gb_results.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic("unable to open log")

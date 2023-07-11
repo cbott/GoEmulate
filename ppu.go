@@ -158,8 +158,12 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 		// when first enabling the LCD, not clear if that's correct
 		gb.SetDisplayMode(DisplayModeOAMSearch)
 		// fmt.Println("LCD not enabled")
+
+		gb.clearScreen()
+
 		return
 	}
+	gb.screenCleared = false
 
 	var newMode uint8
 	var interrupt bool = false
@@ -489,4 +493,25 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 		}
 
 	}
+}
+
+// Clear the screen - debug: set to yellow so we know it was intentional
+func (gb *Gameboy) clearScreen() {
+	// Check if we have cleared the screen already
+	if gb.screenCleared {
+		return
+	}
+
+	// Set every pixel to white
+	for x := 0; x < len(gb.screenData); x++ {
+		for y := 0; y < len(gb.screenData[x]); y++ {
+			gb.screenData[x][y][0] = 255
+			gb.screenData[x][y][1] = 255
+			gb.screenData[x][y][2] = 0
+		}
+	}
+
+	// Push the cleared data right now
+	gb.PreparedData = gb.screenData
+	gb.screenCleared = true
 }

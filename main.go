@@ -60,7 +60,7 @@ func run() {
 		gb.memory.BypassBootROM()
 		gb.cpu.BypassBootROM()
 	}
-	gb.memory.LoadROMFile("roms/blargg/individual/09-op r,r.gb")
+	gb.memory.LoadROMFile("roms/tetris.gb")
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),
@@ -74,6 +74,7 @@ func run() {
 	for !win.Closed() {
 		select {
 		case <-ticker.C:
+			gb.keyboardToJoypad(win)
 			gb.RunNextFrame()
 			RenderScreen(win, picture, &gb.PreparedData)
 		default:
