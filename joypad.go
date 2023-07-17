@@ -32,59 +32,78 @@ const (
 	BUTTON_A      = pixelgl.KeyA
 )
 
-// Interpret keyboard presses as Game Boy joypad inputs
-func (gb *Gameboy) keyboardToJoypad(pixelWindow *pixelgl.Window) {
-	// TODO: this whole function is not very clean right now
-	joypad_register := gb.memory.get(JOYPAD) & 0xF0
-	var state uint8 = 0b1111
+// TODO: not a lot of stuff in this struct, can we simplify? Or can we move more functionality in?
+type Joypad struct {
+	// Stores the state of each joypad button (down/up/left/right/start/select/B/A)
+	ButtonStates uint8
+}
 
-	if joypad_register&JOYPAD_direction_buttons == 0 {
-		// Read direction pad
-		if pixelWindow.Pressed(BUTTON_RIGHT) {
-			state &= 0b1110
-		}
-		if pixelWindow.Pressed(BUTTON_LEFT) {
-			state &= 0b1101
-		}
-		if pixelWindow.Pressed(BUTTON_UP) {
-			state &= 0b1011
-		}
-		if pixelWindow.Pressed(BUTTON_DOWN) {
-			state &= 0b0111
-		}
+// Update the Joypad button states with what is currently pressed on the keyboard
+// and requests an interrupt if a button just became pressed
+func (gb *Gameboy) ReadKeyboard(pixelWindow *pixelgl.Window) {
+	// 1=unpressed, 0=pressed
+	// invert at the end so bit operations are easier
+	var state uint8 = 0
+	// Read direction pad
+	if pixelWindow.Pressed(BUTTON_DOWN) {
+		state |= 1 << 7
 	}
-	if joypad_register&JOYPAD_action_buttons == 0 {
-		// Read A/B/Select/Start
-		if pixelWindow.Pressed(BUTTON_A) {
-			state &= 0b1110
-		}
-		if pixelWindow.Pressed(BUTTON_B) {
-			state &= 0b1101
-		}
-		if pixelWindow.Pressed(BUTTON_SELECT) {
-			state &= 0b1011
-		}
-		if pixelWindow.Pressed(BUTTON_START) {
-			state &= 0b0111
-		}
+	if pixelWindow.Pressed(BUTTON_UP) {
+		state |= 1 << 6
 	}
+	if pixelWindow.Pressed(BUTTON_LEFT) {
+		state |= 1 << 5
+	}
+	if pixelWindow.Pressed(BUTTON_RIGHT) {
+		state |= 1 << 4
+	}
+	if pixelWindow.Pressed(BUTTON_START) {
+		state |= 1 << 3
+	}
+	if pixelWindow.Pressed(BUTTON_SELECT) {
+		state |= 1 << 2
+	}
+	if pixelWindow.Pressed(BUTTON_B) {
+		state |= 1 << 1
+	}
+	if pixelWindow.Pressed(BUTTON_A) {
+		state |= 1 << 0
+	}
+
+	state = ^state
 
 	// Perform an interrupt if any button went from unpressed to pressed
 	var doInterrupt bool = false
-	for i := 0; i < 4; i++ {
-		if (gb.joypadState&(1<<i) != 0) && (state&(1<<i) == 0) {
+	for i := 0; i < 8; i++ {
+		if (gb.joypad.ButtonStates&(1<<i) != 0) && (state&(1<<i) == 0) {
 			doInterrupt = true
 		}
 	}
 
+	gb.joypad.ButtonStates = state
+
 	if doInterrupt {
+		// TODO: also unclear if interrupt should be triggered when buttons not enabled
 		gb.SetInterruptRequestFlag(Interrupt_joypad)
 	}
+}
 
-	// Update joypad register with button states
-	gb.memory.set(JOYPAD, joypad_register|state)
+// Given register P1 with select bits set, return value of P1 with button state bits set as well
+func (jpad *Joypad) GetP1Value(p1 uint8) uint8 {
+	// Set top 2 bits (unused) and clear bottom 4 bits (button states)
+	p1 = (p1 & 0xF0) | 0xC0
 
-	// Store state for next iteration
-	// We could also just compare to the prior register state if we assume/enforce it is read only
-	gb.joypadState = state
+	// Fill in the bottom 4 bits with button states
+	var state uint8
+	if p1&JOYPAD_direction_buttons == 0 {
+		state |= ^((jpad.ButtonStates >> 4) & 0xF)
+	}
+	// TODO: not sure if this is correct behavior for when action+direction are both selected
+	if p1&JOYPAD_action_buttons == 0 {
+		state |= ^(jpad.ButtonStates & 0xF)
+	}
+
+	p1 |= (^state) & 0xF
+
+	return p1
 }

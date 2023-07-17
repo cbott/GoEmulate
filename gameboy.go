@@ -5,12 +5,16 @@ import (
 	"os"
 )
 
-const FramesPerSecond = 60.0
-const CyclesPerFrame = CpuSpeed / int(FramesPerSecond)
+const (
+	CpuSpeed        = 4194304 // Hz
+	FramesPerSecond = 60.0
+	CyclesPerFrame  = CpuSpeed / int(FramesPerSecond)
+)
 
 type Gameboy struct {
 	cpu    *CpuRegisters
 	memory *Memory
+	joypad *Joypad
 
 	// TODO: re-evaluate this matrix
 	// Matrix of pixel data which is used while the screen is rendering. When a
@@ -35,14 +39,11 @@ type Gameboy struct {
 	// Some instructions set interrupt state with a 1 operation delay, these bools track that state
 	pendingInterruptEnable bool
 
-	// Track button presses so we can raise an interrupt on button press
-	joypadState uint8
-
 	screenCleared bool
-	debugCounter  int32
-}
 
-// TODO: Move all *Gameboy functions to a separate file
+	// TODO: delete debug counter
+	debugCounter int32
+}
 
 // Return the value in memory pointed to by PC and then increment PC
 func (gb *Gameboy) popPC() uint8 {
@@ -99,9 +100,9 @@ func (gb *Gameboy) RunNextFrame() {
 func (gb *Gameboy) RunNextOpcode() int {
 	gb.debugCounter++
 
-	// if gb.debugCounter == 16508 {
-	// 	fmt.Printf("debug")
-	// }
+	if gb.debugCounter == -1 {
+		fmt.Printf("debug\n")
+	}
 
 	if gb.debugCounter < 0 {
 		f, err := os.OpenFile("gb_results.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -109,8 +110,8 @@ func (gb *Gameboy) RunNextOpcode() int {
 			panic("unable to open log")
 		}
 		defer f.Close()
-		fmt.Fprintf(f, "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
-			gb.cpu.A, gb.cpu.F, gb.cpu.B, gb.cpu.C, gb.cpu.D, gb.cpu.E, gb.cpu.H, gb.cpu.L,
+		fmt.Fprintf(f, "X:%v A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X MEM:%02X,%02X,%02X,%02X\n",
+			gb.currentScanX, gb.cpu.A, gb.cpu.F, gb.cpu.B, gb.cpu.C, gb.cpu.D, gb.cpu.E, gb.cpu.H, gb.cpu.L,
 			gb.cpu.SP, gb.cpu.PC, gb.memory.get(gb.cpu.PC), gb.memory.get(gb.cpu.PC+1),
 			gb.memory.get(gb.cpu.PC+2), gb.memory.get(gb.cpu.PC+3))
 	}

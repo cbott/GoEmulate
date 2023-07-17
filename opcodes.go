@@ -991,6 +991,12 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		// HALT
 		gb.halted = true
 		return 1
+	case 0x10:
+		// STOP
+		// TODO: treating this as a halt for now, though probably doesn't matter
+		gb.halted = true
+		gb.popPC()
+		return 1
 	// TODO: implement stop, others
 	/////////////// Jumps ////////////////////
 	case 0xC3:
@@ -1166,7 +1172,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 	case 0xC9:
 		// RET
 		gb.cpu.set_register16("PC", gb.popFromStack())
-		return 2
+		return 4
 	case 0xC0:
 		// RET NZ
 		if !gb.cpu.get_flag(FlagZ) {
@@ -1190,7 +1196,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		return 2
 	case 0xD8:
 		// RET C
-		if !gb.cpu.get_flag(FlagC) {
+		if gb.cpu.get_flag(FlagC) {
 			gb.cpu.set_register16("PC", gb.popFromStack())
 			return 5
 		}
@@ -1200,15 +1206,12 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		// Return and enable interrupts
 		gb.cpu.set_register16("PC", gb.popFromStack())
 		gb.interruptMasterEnable = true
-		return 2
+		return 4
 	////////////// CB - Extended Instructions /////////////
 	case 0xCB:
 		// CB
-		// TODO: We could also handle this by just setting a flag to indicate that the
-		// last opcode was CB and then dispatch that when this function is called again
-		// to allow other processes to occur between them
 		next_opcode := gb.popPC()
-		return gb.CBOpcode(next_opcode) + 1
+		return gb.CBOpcode(next_opcode)
 	// TODO: Handle intentionally unimplemented opcodes (should crash Gameboy, but maybe handle gracefully)
 	default:
 		panic(fmt.Sprintf("opcode 0x%X not implemented", opcode))

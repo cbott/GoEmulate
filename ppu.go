@@ -106,11 +106,11 @@ const (
 
 const (
 	STAT                     = 0xFF41
-	STAT_lyc_eq_ly_flag      = 1 << 2
-	STAT_hblank_interrupt    = 1 << 3
-	STAT_vblank_interrupt    = 1 << 4
-	STAT_oam_interrupt       = 1 << 5
 	STAT_lyc_eq_ly_interrupt = 1 << 6
+	STAT_oam_interrupt       = 1 << 5
+	STAT_vblank_interrupt    = 1 << 4
+	STAT_hblank_interrupt    = 1 << 3
+	STAT_lyc_eq_ly_flag      = 1 << 2
 )
 
 // PPU timing, in 4MHz cycles
@@ -198,6 +198,10 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 		}
 		gb.SetDisplayMode(newMode)
 	}
+
+	// Re-read the status in case we updated the mode bits above
+	// TODO: could probably organize things better to avoid this
+	status = gb.memory.get(STAT)
 
 	if currentLine == gb.memory.get(LYC) {
 		// Set the LYC=LY flag

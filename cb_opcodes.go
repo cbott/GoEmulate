@@ -192,6 +192,7 @@ func cbSET(gb *Gameboy, reg string, bit uint8) {
 	cbRegisterSet(gb, reg, cbRegisterGet(gb, reg)|(1<<bit))
 }
 
+// Execute a single CB-Prefixed opcode and return the number of CPU cycles it took (1MHz CPU cycles)
 func (gb *Gameboy) CBOpcode(opcode uint8) int {
 	// CB instructions have a regular pattern so we can avoid hard coding things
 	column := (opcode & 0xF) % 8
@@ -200,6 +201,11 @@ func (gb *Gameboy) CBOpcode(opcode uint8) int {
 
 	function(gb, register)
 
+	if opcode == 0x4e || opcode == 0x5e || opcode == 0x6e || opcode == 0x7e {
+		// TODO: Several emulators I've looked at call these operations 3 cycles
+		// but most documentation says 4, need to pick the right one and implement cleanly
+		return 3
+	}
 	if register == "(HL)" {
 		return 4
 	}

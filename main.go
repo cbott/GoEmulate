@@ -34,6 +34,8 @@ func CreateGameBoy() *Gameboy {
 	gb.cpu = &CpuRegisters{}
 	gb.memory = &Memory{}
 	gb.memory.Init()
+	gb.joypad = &Joypad{}
+	gb.memory.gameboy = &gb
 	// TODO: Does interrupt master enable default to True?
 	return &gb
 }
@@ -42,7 +44,7 @@ func run() {
 	cfg := pixelgl.WindowConfig{
 		Title:  "Game Boy Emulator",
 		Bounds: pixel.R(0, 0, ScreenWidth, ScreenHeight),
-		// VSync:  true,
+		VSync:  true,
 	}
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
@@ -74,7 +76,7 @@ func run() {
 	for !win.Closed() {
 		select {
 		case <-ticker.C:
-			gb.keyboardToJoypad(win)
+			gb.ReadKeyboard(win)
 			gb.RunNextFrame()
 			RenderScreen(win, picture, &gb.PreparedData)
 		default:

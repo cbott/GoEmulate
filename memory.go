@@ -151,8 +151,12 @@ type Memory struct {
 	cartridge Cartridge
 	bootrom   [0x100]uint8
 
+	// TODO: move div accumulator to GB object if we keep the reference to the gb object?
 	// Internal counter to keep track of when the DIV register should increment
 	divAccumulator int
+
+	// TODO: see if we can avoid this circular reference
+	gameboy *Gameboy
 }
 
 // Write a value to memory
@@ -164,6 +168,9 @@ func (m *Memory) set(address uint16, value uint8) {
 	} else if address == DMA {
 		// Initiate a DMA transfer, register should never be read so we will leave it at 0
 		m.performDMATransfer(value)
+	} else if address == JOYPAD {
+		// Only bits 4 and 5 of the P1 register are writeable
+		m.memory[address] = (m.memory[address] & 0xF) | (value & 0b00110000)
 	} else {
 		m.memory[address] = value
 	}
@@ -188,6 +195,16 @@ func (m *Memory) get(address uint16) uint8 {
 	// TODO: confirm if that's true or if they just default high on startup
 	if address == IF {
 		return m.memory[address] | 0b11100000
+	}
+
+	// STAT bit 7 is unused
+	if address == STAT {
+		return m.memory[address] | 0b10000000
+	}
+
+	// Joypad return value depends on value in the register
+	if address == JOYPAD {
+		return m.gameboy.joypad.GetP1Value(m.memory[address])
 	}
 
 	// In most cases we just read a raw value
@@ -225,33 +242,36 @@ func (m *Memory) LoadROMFile(filename string) {
 func (m *Memory) BypassBootROM() {
 	// TODO: figure out what these constants mean
 	// switch to setting by register name like m.set(SCY, 0)
-	m.set(0xFF05, 0x00) // TIMA
-	m.set(0xFF06, 0x00) // TMA
-	m.set(0xFF07, 0x00) // TAC
-	m.set(0xFF10, 0x80) // NR10
-	m.set(0xFF11, 0xBF) // NR11
-	m.set(0xFF12, 0xF3) // NR12
-	m.set(0xFF14, 0xBF) // NR14
-	m.set(0xFF16, 0x3F) // NR21
-	m.set(0xFF17, 0x00) // NR22
-	m.set(0xFF19, 0xBF) // NR24
-	m.set(0xFF1A, 0x7F) // NR30
-	m.set(0xFF1B, 0xFF) // NR31
-	m.set(0xFF1C, 0x9F) // NR32
-	m.set(0xFF1E, 0xBF) // NR33
-	m.set(0xFF20, 0xFF) // NR41
-	m.set(0xFF21, 0x00) // NR42
-	m.set(0xFF22, 0x00) // NR43
-	m.set(0xFF23, 0xBF) // NR30
-	m.set(0xFF24, 0x77) // NR50
-	m.set(0xFF25, 0xF3) // NR51
-	m.set(0xFF26, 0xF1) // NR52
-	m.set(0xFF40, 0x91) // LCDC
-	m.set(0xFF42, 0x00) // SCY
-	m.set(0xFF43, 0x00) // SCX
-	m.set(0xFF45, 0x00) // LYC
-	m.set(0xFF47, 0xFC) // BGP
-	m.set(0xFF4A, 0x00) // WY
-	m.set(0xFF4B, 0x00) // WX
-	m.set(0xFFFF, 0x00) // Interrupt Enable register
+	// TODO: compare these to what we get when we actually run the boot ROM
+	m.memory[DIV] = 0x1E // Needs a double check
+	m.set(IF, 0xE1)      // Conflicting sources on this one
+	m.set(0xFF05, 0x00)  // TIMA
+	m.set(0xFF06, 0x00)  // TMA
+	m.set(0xFF07, 0x00)  // TAC
+	m.set(0xFF10, 0x80)  // NR10
+	m.set(0xFF11, 0xBF)  // NR11
+	m.set(0xFF12, 0xF3)  // NR12
+	m.set(0xFF14, 0xBF)  // NR14
+	m.set(0xFF16, 0x3F)  // NR21
+	m.set(0xFF17, 0x00)  // NR22
+	m.set(0xFF19, 0xBF)  // NR24
+	m.set(0xFF1A, 0x7F)  // NR30
+	m.set(0xFF1B, 0xFF)  // NR31
+	m.set(0xFF1C, 0x9F)  // NR32
+	m.set(0xFF1E, 0xBF)  // NR33
+	m.set(0xFF20, 0xFF)  // NR41
+	m.set(0xFF21, 0x00)  // NR42
+	m.set(0xFF22, 0x00)  // NR43
+	m.set(0xFF23, 0xBF)  // NR30
+	m.set(0xFF24, 0x77)  // NR50
+	m.set(0xFF25, 0xF3)  // NR51
+	m.set(0xFF26, 0xF1)  // NR52
+	m.set(0xFF40, 0x91)  // LCDC
+	m.set(0xFF42, 0x00)  // SCY
+	m.set(0xFF43, 0x00)  // SCX
+	m.set(0xFF45, 0x00)  // LYC
+	m.set(0xFF47, 0xFC)  // BGP
+	m.set(0xFF4A, 0x00)  // WY
+	m.set(0xFF4B, 0x00)  // WX
+	m.set(0xFFFF, 0x00)  // Interrupt Enable register
 }

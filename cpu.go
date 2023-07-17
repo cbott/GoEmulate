@@ -26,8 +26,6 @@ SP: Stack Pointer
 PC: Program Counter
 */
 
-const CpuSpeed = 4194304 // Hz
-
 // Define registers
 type CpuRegisters struct {
 	A, F uint8
