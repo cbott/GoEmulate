@@ -66,8 +66,8 @@ func (gb *Gameboy) RunInterrupts() int {
 			gb.interruptMasterEnable = false
 
 			// push current PC to the stack and jump to the interrupt address
-			gb.pushToStack16(gb.cpu.get_register16("PC"))
-			gb.cpu.set_register16("PC", interruptAddresses[i])
+			gb.pushToStack16(gb.cpu.get_register16(regPC))
+			gb.cpu.set_register16(regPC, interruptAddresses[i])
 
 			// TODO: Do we really only process 1 interrupt each time?
 			interruptPerformed = true
