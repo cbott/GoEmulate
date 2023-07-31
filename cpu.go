@@ -26,6 +26,43 @@ SP: Stack Pointer
 PC: Program Counter
 */
 
+// Define register names for type safety
+type register8 interface {
+	register8Method()
+}
+
+type register8Name string
+
+func (r register8Name) register8Method() {}
+
+const (
+	regA register8Name = "A"
+	regF register8Name = "F"
+	regB register8Name = "B"
+	regC register8Name = "C"
+	regD register8Name = "D"
+	regE register8Name = "E"
+	regH register8Name = "H"
+	regL register8Name = "L"
+)
+
+type register16 interface {
+	register16Method()
+}
+
+type register16Name string
+
+func (r register16Name) register16Method() {}
+
+const (
+	regAF register16Name = "AF"
+	regBC register16Name = "BC"
+	regDE register16Name = "DE"
+	regHL register16Name = "HL"
+	regSP register16Name = "SP"
+	regPC register16Name = "PC"
+)
+
 // Define registers
 type CpuRegisters struct {
 	A, F uint8
@@ -73,24 +110,24 @@ func (r *CpuRegisters) get_flag(flag uint8) bool {
 // TODO: "set" is kind of an overloaded word, usually indicates writing a 1, "write" is better?
 
 // Set an 8-bit register
-func (r *CpuRegisters) set_register(letter string, value uint8) error {
+func (r *CpuRegisters) set_register(letter register8, value uint8) error {
 	switch letter {
-	case "A":
+	case regA:
 		r.A = value
-	case "F":
+	case regF:
 		// Lower 4 bits of F cannot be set
 		r.F = value & 0xF0
-	case "B":
+	case regB:
 		r.B = value
-	case "C":
+	case regC:
 		r.C = value
-	case "D":
+	case regD:
 		r.D = value
-	case "E":
+	case regE:
 		r.E = value
-	case "H":
+	case regH:
 		r.H = value
-	case "L":
+	case regL:
 		r.L = value
 	default:
 		return fmt.Errorf("tried to set nonexistent 8 bit register %s", letter)
@@ -99,24 +136,24 @@ func (r *CpuRegisters) set_register(letter string, value uint8) error {
 }
 
 // Set a 16-bit register
-func (r *CpuRegisters) set_register16(letter string, value uint16) error {
+func (r *CpuRegisters) set_register16(letter register16, value uint16) error {
 	switch letter {
-	case "AF":
+	case regAF:
 		r.A = uint8(value >> 8)
 		// Lower 4 bits of F cannot be set
 		r.F = uint8(value & 0xF0)
-	case "BC":
+	case regBC:
 		r.B = uint8(value >> 8)
 		r.C = uint8(value & 0xFF)
-	case "DE":
+	case regDE:
 		r.D = uint8(value >> 8)
 		r.E = uint8(value & 0xFF)
-	case "HL":
+	case regHL:
 		r.H = uint8(value >> 8)
 		r.L = uint8(value & 0xFF)
-	case "SP":
+	case regSP:
 		r.SP = value
-	case "PC":
+	case regPC:
 		r.PC = value
 	default:
 		return fmt.Errorf("tried to set nonexistent 16 bit register %s", letter)
@@ -125,23 +162,23 @@ func (r *CpuRegisters) set_register16(letter string, value uint16) error {
 }
 
 // Read an 8-bit register
-func (r *CpuRegisters) get_register(letter string) uint8 {
+func (r *CpuRegisters) get_register(letter register8) uint8 {
 	switch letter {
-	case "A":
+	case regA:
 		return r.A
-	case "F":
+	case regF:
 		return r.F
-	case "B":
+	case regB:
 		return r.B
-	case "C":
+	case regC:
 		return r.C
-	case "D":
+	case regD:
 		return r.D
-	case "E":
+	case regE:
 		return r.E
-	case "H":
+	case regH:
 		return r.H
-	case "L":
+	case regL:
 		return r.L
 	default:
 		panic(fmt.Sprintf("tried to get nonexistent 8-bit register %s", letter))
@@ -149,19 +186,19 @@ func (r *CpuRegisters) get_register(letter string) uint8 {
 }
 
 // Read a 16-bit register
-func (r *CpuRegisters) get_register16(letter string) uint16 {
+func (r *CpuRegisters) get_register16(letter register16) uint16 {
 	switch letter {
-	case "AF":
+	case regAF:
 		return uint16(r.A)<<8 | uint16(r.F)
-	case "BC":
+	case regBC:
 		return uint16(r.B)<<8 | uint16(r.C)
-	case "DE":
+	case regDE:
 		return uint16(r.D)<<8 | uint16(r.E)
-	case "HL":
+	case regHL:
 		return uint16(r.H)<<8 | uint16(r.L)
-	case "SP":
+	case regSP:
 		return r.SP
-	case "PC":
+	case regPC:
 		return r.PC
 	default:
 		panic(fmt.Sprintf("tried to get nonexistent 16-bit register %s", letter))
@@ -171,7 +208,7 @@ func (r *CpuRegisters) get_register16(letter string) uint16 {
 // Add n to A and set the appropriate flags for the result,
 // if carry is set to true the value of the carry flag will be added as well
 func (r *CpuRegisters) addToRegisterA(n uint8, carry bool) {
-	a := r.get_register("A")
+	a := r.get_register(regA)
 	var carrybit uint8 = 0
 	if carry && r.get_flag(FlagC) {
 		carrybit = 1
@@ -184,12 +221,12 @@ func (r *CpuRegisters) addToRegisterA(n uint8, carry bool) {
 	r.set_flag(FlagN, false)
 	r.set_flag(FlagH, ((a&0xF)+(n&0xF)+carrybit) > 0xF)
 	r.set_flag(FlagC, long_result > 0xFF)
-	r.set_register("A", result)
+	r.set_register(regA, result)
 }
 
 // Subtract n from A and set the appropriate flags for the result
 func (r *CpuRegisters) subtractFromRegisterA(n uint8, carry bool) {
-	a := r.get_register("A")
+	a := r.get_register(regA)
 	var carrybit uint8 = 0
 	if carry && r.get_flag(FlagC) {
 		carrybit = 1
@@ -202,45 +239,45 @@ func (r *CpuRegisters) subtractFromRegisterA(n uint8, carry bool) {
 	r.set_flag(FlagN, true)
 	r.set_flag(FlagH, signedHalfResult < 0)
 	r.set_flag(FlagC, signedResult < 0)
-	r.set_register("A", result)
+	r.set_register(regA, result)
 }
 
 // Perform bitwise AND with register A and store the result in A
 func (r *CpuRegisters) andA(n uint8) {
-	a := r.get_register("A")
+	a := r.get_register(regA)
 	result := a & n
 	r.set_flag(FlagZ, result == 0)
 	r.set_flag(FlagN, false)
 	r.set_flag(FlagH, true)
 	r.set_flag(FlagC, false)
-	r.set_register("A", result)
+	r.set_register(regA, result)
 }
 
 // Perform bitwise OR with register A and store the result in A
 func (r *CpuRegisters) orA(n uint8) {
-	a := r.get_register("A")
+	a := r.get_register(regA)
 	result := a | n
 	r.set_flag(FlagZ, result == 0)
 	r.set_flag(FlagN, false)
 	r.set_flag(FlagH, false)
 	r.set_flag(FlagC, false)
-	r.set_register("A", result)
+	r.set_register(regA, result)
 }
 
 // Perform bitwise XOR with register A and store the result in A
 func (r *CpuRegisters) xorA(n uint8) {
-	a := r.get_register("A")
+	a := r.get_register(regA)
 	result := a ^ n
 	r.set_flag(FlagZ, result == 0)
 	r.set_flag(FlagN, false)
 	r.set_flag(FlagH, false)
 	r.set_flag(FlagC, false)
-	r.set_register("A", result)
+	r.set_register(regA, result)
 }
 
 // Compare n with register A and set the approprate flags based on the result
 func (r *CpuRegisters) compareA(n uint8) {
-	a := r.get_register("A")
+	a := r.get_register(regA)
 	r.set_flag(FlagZ, a == n)
 	r.set_flag(FlagN, true)
 	r.set_flag(FlagH, (a&0xF) < (n&0xF))
@@ -248,7 +285,7 @@ func (r *CpuRegisters) compareA(n uint8) {
 }
 
 // Increment an 8 bit register and set the appropriate flags for the result,
-func (r *CpuRegisters) incrementRegister(letter string) {
+func (r *CpuRegisters) incrementRegister(letter register8) {
 	value := r.get_register(letter)
 	r.set_flag(FlagZ, value == 0xFF)
 	r.set_flag(FlagN, false)
@@ -257,7 +294,7 @@ func (r *CpuRegisters) incrementRegister(letter string) {
 }
 
 // Decrement an 8 bit register and set the appropriate flags for the result,
-func (r *CpuRegisters) decrementRegister(letter string) {
+func (r *CpuRegisters) decrementRegister(letter register8) {
 	value := r.get_register(letter)
 	r.set_flag(FlagZ, value == 0x01)
 	r.set_flag(FlagN, true)
@@ -267,21 +304,21 @@ func (r *CpuRegisters) decrementRegister(letter string) {
 
 // Add n to HL and set the appropriate flags for the result
 func (r *CpuRegisters) addToRegisterHL(n uint16) {
-	hl := r.get_register16("HL")
+	hl := r.get_register16(regHL)
 	result := hl + n
 	r.set_flag(FlagN, false)
 	r.set_flag(FlagH, (hl&0x0FFF)+(n&0x0FFF) > 0x0FFF)
 	r.set_flag(FlagC, hl > result)
-	r.set_register16("HL", result)
+	r.set_register16(regHL, result)
 }
 
 // Set registers to the state they would be in after boot ROM runs
 // if skipping normal bootrom execution we can run this instead
 func (c *CpuRegisters) BypassBootROM() {
-	c.set_register16("AF", 0x01B0)
-	c.set_register16("BC", 0x0013)
-	c.set_register16("DE", 0x00D8)
-	c.set_register16("HL", 0x014D)
-	c.set_register16("SP", 0xFFFE)
-	c.set_register16("PC", 0x0100)
+	c.set_register16(regAF, 0x01B0)
+	c.set_register16(regBC, 0x0013)
+	c.set_register16(regDE, 0x00D8)
+	c.set_register16(regHL, 0x014D)
+	c.set_register16(regSP, 0xFFFE)
+	c.set_register16(regPC, 0x0100)
 }

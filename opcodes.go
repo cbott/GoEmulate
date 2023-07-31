@@ -22,31 +22,31 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 	//////////////// 8-bit loads ////////////////
 	case 0x3E:
 		// LD A,n
-		gb.cpu.set_register("A", gb.popPC())
+		gb.cpu.set_register(regA, gb.popPC())
 		return 2
 	case 0x06:
 		// LD B,n
-		gb.cpu.set_register("B", gb.popPC())
+		gb.cpu.set_register(regB, gb.popPC())
 		return 2
 	case 0x0E:
 		// LD C,n
-		gb.cpu.set_register("C", gb.popPC())
+		gb.cpu.set_register(regC, gb.popPC())
 		return 2
 	case 0x16:
 		// LD D,n
-		gb.cpu.set_register("D", gb.popPC())
+		gb.cpu.set_register(regD, gb.popPC())
 		return 2
 	case 0x1E:
 		// LD E,n
-		gb.cpu.set_register("E", gb.popPC())
+		gb.cpu.set_register(regE, gb.popPC())
 		return 2
 	case 0x26:
 		// LD H,n
-		gb.cpu.set_register("H", gb.popPC())
+		gb.cpu.set_register(regH, gb.popPC())
 		return 2
 	case 0x2E:
 		// LD L,n
-		gb.cpu.set_register("L", gb.popPC())
+		gb.cpu.set_register(regL, gb.popPC())
 		return 2
 	case 0x7F, 0x40, 0x49, 0x52, 0x5B, 0x64, 0x6D:
 		// LD X,X (For registers A, B, C, D, E, H, L)
@@ -54,199 +54,199 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		return 1
 	case 0x78:
 		// LD A,B
-		gb.cpu.set_register("A", gb.cpu.get_register("B"))
+		gb.cpu.set_register(regA, gb.cpu.get_register("B"))
 		return 1
 	case 0x79:
 		// LD A,C
-		gb.cpu.set_register("A", gb.cpu.get_register("C"))
+		gb.cpu.set_register(regA, gb.cpu.get_register("C"))
 		return 1
 	case 0x7A:
 		// LD A,D
-		gb.cpu.set_register("A", gb.cpu.get_register("D"))
+		gb.cpu.set_register(regA, gb.cpu.get_register("D"))
 		return 1
 	case 0x7B:
 		// LD A,E
-		gb.cpu.set_register("A", gb.cpu.get_register("E"))
+		gb.cpu.set_register(regA, gb.cpu.get_register("E"))
 		return 1
 	case 0x7C:
 		// LD A,H
-		gb.cpu.set_register("A", gb.cpu.get_register("H"))
+		gb.cpu.set_register(regA, gb.cpu.get_register("H"))
 		return 1
 	case 0x7D:
 		// LD A,L
-		gb.cpu.set_register("A", gb.cpu.get_register("L"))
+		gb.cpu.set_register(regA, gb.cpu.get_register("L"))
 		return 1
 	case 0x7E:
 		// LD A,(HL)
-		gb.cpu.set_register("A", gb.memory.get(gb.cpu.get_register16("HL")))
+		gb.cpu.set_register(regA, gb.memory.get(gb.cpu.get_register16("HL")))
 		return 2
 	case 0x41:
 		// LD B,C
-		gb.cpu.set_register("B", gb.cpu.get_register("C"))
+		gb.cpu.set_register(regB, gb.cpu.get_register("C"))
 		return 1
 	case 0x42:
 		// LD B,D
-		gb.cpu.set_register("B", gb.cpu.get_register("D"))
+		gb.cpu.set_register(regB, gb.cpu.get_register("D"))
 		return 1
 	case 0x43:
 		// LD B,E
-		gb.cpu.set_register("B", gb.cpu.get_register("E"))
+		gb.cpu.set_register(regB, gb.cpu.get_register("E"))
 		return 1
 	case 0x44:
 		// LD B,H
-		gb.cpu.set_register("B", gb.cpu.get_register("H"))
+		gb.cpu.set_register(regB, gb.cpu.get_register("H"))
 		return 1
 	case 0x45:
 		// LD B,L
-		gb.cpu.set_register("B", gb.cpu.get_register("L"))
+		gb.cpu.set_register(regB, gb.cpu.get_register("L"))
 		return 1
 	case 0x46:
 		// LD B,(HL)
-		gb.cpu.set_register("B", gb.memory.get(gb.cpu.get_register16("HL")))
+		gb.cpu.set_register(regB, gb.memory.get(gb.cpu.get_register16("HL")))
 		return 2
 	case 0x47:
 		// LD B,A
-		gb.cpu.set_register("B", gb.cpu.get_register("A"))
+		gb.cpu.set_register(regB, gb.cpu.get_register("A"))
 		return 1
 	case 0x48:
 		// LD C,B
-		gb.cpu.set_register("C", gb.cpu.get_register("B"))
+		gb.cpu.set_register(regC, gb.cpu.get_register("B"))
 		return 1
 	case 0x4A:
 		// LD C,D
-		gb.cpu.set_register("C", gb.cpu.get_register("D"))
+		gb.cpu.set_register(regC, gb.cpu.get_register("D"))
 		return 1
 	case 0x4B:
 		// LD C,E
-		gb.cpu.set_register("C", gb.cpu.get_register("E"))
+		gb.cpu.set_register(regC, gb.cpu.get_register("E"))
 		return 1
 	case 0x4C:
 		// LD C,H
-		gb.cpu.set_register("C", gb.cpu.get_register("H"))
+		gb.cpu.set_register(regC, gb.cpu.get_register("H"))
 		return 1
 	case 0x4D:
 		// LD C,L
-		gb.cpu.set_register("C", gb.cpu.get_register("L"))
+		gb.cpu.set_register(regC, gb.cpu.get_register("L"))
 		return 1
 	case 0x4E:
 		// LD C,(HL)
-		gb.cpu.set_register("C", gb.memory.get(gb.cpu.get_register16("HL")))
+		gb.cpu.set_register(regC, gb.memory.get(gb.cpu.get_register16("HL")))
 		return 2
 	case 0x4F:
 		// LD C,A
-		gb.cpu.set_register("C", gb.cpu.get_register("A"))
+		gb.cpu.set_register(regC, gb.cpu.get_register("A"))
 		return 1
 	case 0x50:
 		// LD D,B
-		gb.cpu.set_register("D", gb.cpu.get_register("B"))
+		gb.cpu.set_register(regD, gb.cpu.get_register("B"))
 		return 1
 	case 0x51:
 		// LD D,C
-		gb.cpu.set_register("D", gb.cpu.get_register("C"))
+		gb.cpu.set_register(regD, gb.cpu.get_register("C"))
 		return 1
 	case 0x53:
 		// LD D,E
-		gb.cpu.set_register("D", gb.cpu.get_register("E"))
+		gb.cpu.set_register(regD, gb.cpu.get_register("E"))
 		return 1
 	case 0x54:
 		// LD D,H
-		gb.cpu.set_register("D", gb.cpu.get_register("H"))
+		gb.cpu.set_register(regD, gb.cpu.get_register("H"))
 		return 1
 	case 0x55:
 		// LD D,L
-		gb.cpu.set_register("D", gb.cpu.get_register("L"))
+		gb.cpu.set_register(regD, gb.cpu.get_register("L"))
 		return 1
 	case 0x56:
 		// LD D,(HL)
-		gb.cpu.set_register("D", gb.memory.get(gb.cpu.get_register16("HL")))
+		gb.cpu.set_register(regD, gb.memory.get(gb.cpu.get_register16("HL")))
 		return 2
 	case 0x57:
 		// LD D,A
-		gb.cpu.set_register("D", gb.cpu.get_register("A"))
+		gb.cpu.set_register(regD, gb.cpu.get_register("A"))
 		return 1
 	case 0x58:
 		// LD E,B
-		gb.cpu.set_register("E", gb.cpu.get_register("B"))
+		gb.cpu.set_register(regE, gb.cpu.get_register("B"))
 		return 1
 	case 0x59:
 		// LD E,C
-		gb.cpu.set_register("E", gb.cpu.get_register("C"))
+		gb.cpu.set_register(regE, gb.cpu.get_register("C"))
 		return 1
 	case 0x5A:
 		// LD E,D
-		gb.cpu.set_register("E", gb.cpu.get_register("D"))
+		gb.cpu.set_register(regE, gb.cpu.get_register("D"))
 		return 1
 	case 0x5C:
 		// LD E,H
-		gb.cpu.set_register("E", gb.cpu.get_register("H"))
+		gb.cpu.set_register(regE, gb.cpu.get_register("H"))
 		return 1
 	case 0x5D:
 		// LD E,L
-		gb.cpu.set_register("E", gb.cpu.get_register("L"))
+		gb.cpu.set_register(regE, gb.cpu.get_register("L"))
 		return 1
 	case 0x5E:
 		// LD E,(HL)
-		gb.cpu.set_register("E", gb.memory.get(gb.cpu.get_register16("HL")))
+		gb.cpu.set_register(regE, gb.memory.get(gb.cpu.get_register16("HL")))
 		return 2
 	case 0x5F:
 		// LD E,A
-		gb.cpu.set_register("E", gb.cpu.get_register("A"))
+		gb.cpu.set_register(regE, gb.cpu.get_register("A"))
 		return 1
 	case 0x60:
 		// LD H,B
-		gb.cpu.set_register("H", gb.cpu.get_register("B"))
+		gb.cpu.set_register(regH, gb.cpu.get_register("B"))
 		return 1
 	case 0x61:
 		// LD H,C
-		gb.cpu.set_register("H", gb.cpu.get_register("C"))
+		gb.cpu.set_register(regH, gb.cpu.get_register("C"))
 		return 1
 	case 0x62:
 		// LD H,D
-		gb.cpu.set_register("H", gb.cpu.get_register("D"))
+		gb.cpu.set_register(regH, gb.cpu.get_register("D"))
 		return 1
 	case 0x63:
 		// LD H,E
-		gb.cpu.set_register("H", gb.cpu.get_register("E"))
+		gb.cpu.set_register(regH, gb.cpu.get_register("E"))
 		return 1
 	case 0x65:
 		// LD H,L
-		gb.cpu.set_register("H", gb.cpu.get_register("L"))
+		gb.cpu.set_register(regH, gb.cpu.get_register("L"))
 		return 1
 	case 0x66:
 		// LD H,(HL)
-		gb.cpu.set_register("H", gb.memory.get(gb.cpu.get_register16("HL")))
+		gb.cpu.set_register(regH, gb.memory.get(gb.cpu.get_register16("HL")))
 		return 2
 	case 0x67:
 		// LD H,A
-		gb.cpu.set_register("H", gb.cpu.get_register("A"))
+		gb.cpu.set_register(regH, gb.cpu.get_register("A"))
 		return 1
 	case 0x68:
 		// LD L,B
-		gb.cpu.set_register("L", gb.cpu.get_register("B"))
+		gb.cpu.set_register(regL, gb.cpu.get_register("B"))
 		return 1
 	case 0x69:
 		// LD L,C
-		gb.cpu.set_register("L", gb.cpu.get_register("C"))
+		gb.cpu.set_register(regL, gb.cpu.get_register("C"))
 		return 1
 	case 0x6A:
 		// LD L,D
-		gb.cpu.set_register("L", gb.cpu.get_register("D"))
+		gb.cpu.set_register(regL, gb.cpu.get_register("D"))
 		return 1
 	case 0x6B:
 		// LD L,E
-		gb.cpu.set_register("L", gb.cpu.get_register("E"))
+		gb.cpu.set_register(regL, gb.cpu.get_register("E"))
 		return 1
 	case 0x6C:
 		// LD L,H
-		gb.cpu.set_register("L", gb.cpu.get_register("H"))
+		gb.cpu.set_register(regL, gb.cpu.get_register("H"))
 		return 1
 	case 0x6E:
 		// LD L,(HL)
-		gb.cpu.set_register("L", gb.memory.get(gb.cpu.get_register16("HL")))
+		gb.cpu.set_register(regL, gb.memory.get(gb.cpu.get_register16("HL")))
 		return 2
 	case 0x6F:
 		// LD L,A
-		gb.cpu.set_register("L", gb.cpu.get_register("A"))
+		gb.cpu.set_register(regL, gb.cpu.get_register("A"))
 		return 1
 	case 0x70:
 		// LD (HL),B
@@ -278,15 +278,15 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		return 3
 	case 0x0A:
 		// LD A,(BC)
-		gb.cpu.set_register("A", gb.memory.get(gb.cpu.get_register16("BC")))
+		gb.cpu.set_register(regA, gb.memory.get(gb.cpu.get_register16("BC")))
 		return 2
 	case 0x1A:
 		// LD A,(DE)
-		gb.cpu.set_register("A", gb.memory.get(gb.cpu.get_register16("DE")))
+		gb.cpu.set_register(regA, gb.memory.get(gb.cpu.get_register16("DE")))
 		return 2
 	case 0xFA:
 		// LD A,(nn)
-		gb.cpu.set_register("A", gb.memory.get(gb.popPC16()))
+		gb.cpu.set_register(regA, gb.memory.get(gb.popPC16()))
 		return 4
 	case 0x02:
 		// LD (BC),A
@@ -306,7 +306,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		return 4
 	case 0xF2:
 		// LD A,(0xFF00+C)
-		gb.cpu.set_register("A", gb.memory.get(0xFF00+uint16(gb.cpu.get_register("C"))))
+		gb.cpu.set_register(regA, gb.memory.get(0xFF00+uint16(gb.cpu.get_register("C"))))
 		return 2
 	case 0xE2:
 		// LD (0xFF00+C),A
@@ -316,7 +316,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		// LD A,(HL-)
 		// Load A with the value at memory address HL, then decrement HL
 		currentHL := gb.cpu.get_register16("HL")
-		gb.cpu.set_register("A", gb.memory.get(currentHL))
+		gb.cpu.set_register(regA, gb.memory.get(currentHL))
 		gb.cpu.set_register16("HL", currentHL-1)
 		return 2
 	case 0x32:
@@ -330,7 +330,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		// LD A,(HL+)
 		// Load A with the value at memory address HL, then increment HL
 		currentHL := gb.cpu.get_register16("HL")
-		gb.cpu.set_register("A", gb.memory.get(currentHL))
+		gb.cpu.set_register(regA, gb.memory.get(currentHL))
 		gb.cpu.set_register16("HL", currentHL+1)
 		return 2
 	case 0x22:
@@ -346,7 +346,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		return 3
 	case 0xF0:
 		// LD A,(0xFF00+n)
-		gb.cpu.set_register("A", gb.memory.get(0xFF00+uint16(gb.popPC())))
+		gb.cpu.set_register(regA, gb.memory.get(0xFF00+uint16(gb.popPC())))
 		return 3
 	//////////////// 16-bit loads ////////////////
 	case 0x01:
@@ -860,7 +860,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		carrybit := value >> 7
 		result := (value << 1) | carrybit
 
-		gb.cpu.set_register("A", result)
+		gb.cpu.set_register(regA, result)
 		gb.cpu.set_flag(FlagZ, false)
 		gb.cpu.set_flag(FlagN, false)
 		gb.cpu.set_flag(FlagH, false)
@@ -878,7 +878,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		newcarry := value >> 7
 		result := (value << 1) | oldcarry
 
-		gb.cpu.set_register("A", result)
+		gb.cpu.set_register(regA, result)
 		gb.cpu.set_flag(FlagZ, false)
 		gb.cpu.set_flag(FlagN, false)
 		gb.cpu.set_flag(FlagH, false)
@@ -892,7 +892,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		carrybit := value & 1
 		result := (value >> 1) | (carrybit << 7)
 
-		gb.cpu.set_register("A", result)
+		gb.cpu.set_register(regA, result)
 		gb.cpu.set_flag(FlagZ, false)
 		gb.cpu.set_flag(FlagN, false)
 		gb.cpu.set_flag(FlagH, false)
@@ -910,7 +910,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		newcarry := value & 1
 		result := (value >> 1) | (oldcarry << 7)
 
-		gb.cpu.set_register("A", result)
+		gb.cpu.set_register(regA, result)
 		gb.cpu.set_flag(FlagZ, false)
 		gb.cpu.set_flag(FlagN, false)
 		gb.cpu.set_flag(FlagH, false)
@@ -946,11 +946,11 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 		}
 		gb.cpu.set_flag(FlagZ, uint8(a) == 0)
 		gb.cpu.set_flag(FlagH, false)
-		gb.cpu.set_register("A", uint8(a))
+		gb.cpu.set_register(regA, uint8(a))
 		return 1
 	case 0x2F:
 		// CPL
-		gb.cpu.set_register("A", ^gb.cpu.get_register("A"))
+		gb.cpu.set_register(regA, ^gb.cpu.get_register("A"))
 		gb.cpu.set_flag(FlagN, true)
 		gb.cpu.set_flag(FlagH, true)
 		return 1
