@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 )
 
 /*
@@ -22,14 +23,15 @@ CPU Registers
 
 A: Arithmetic register
 F: Flag register
-B-L: General purpose registers
+B/C/D/E/H/L: General purpose registers
 SP: Stack Pointer
 PC: Program Counter
 */
 
 // Define registers
 type CpuRegisters struct {
-	A, F uint8
+	A    uint8 `letter:"A"`
+	F    uint8
 	B, C uint8
 	D, E uint8
 	H, L uint8
@@ -75,27 +77,13 @@ func (r *CpuRegisters) get_flag(flag uint8) bool {
 
 // Set an 8-bit register
 func (r *CpuRegisters) set_register(letter register8, value uint8) error {
-	switch letter {
-	case regA:
-		r.A = value
-	case regF:
+	if letter == regF {
 		// Lower 4 bits of F cannot be set
-		r.F = value & 0xF0
-	case regB:
-		r.B = value
-	case regC:
-		r.C = value
-	case regD:
-		r.D = value
-	case regE:
-		r.E = value
-	case regH:
-		r.H = value
-	case regL:
-		r.L = value
-	default:
-		return fmt.Errorf("tried to set nonexistent 8 bit register %s", letter)
+		value &= 0xF0
 	}
+	s := reflect.ValueOf(r).Elem()
+	structField := s.FieldByName(letter.String())
+	structField.SetUint(uint64(value))
 	return nil
 }
 
