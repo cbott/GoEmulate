@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 )
 
 /*
@@ -39,8 +38,6 @@ type CpuRegisters struct {
 	PC   uint16
 }
 
-// TODO: this is not the best way to deal with flags
-// probably delete it as a standard register and replace it with a struct of bools or similar
 const (
 	// 7 (Z): Zero Flag
 	FlagZ = 7
@@ -71,19 +68,32 @@ func (r *CpuRegisters) get_flag(flag uint8) bool {
 	return (r.F & (1 << flag)) != 0
 }
 
-// TODO: use Enum instead of string to access
 // TODO: should we be using camelCase instead of underscores in fn names?
 // TODO: "set" is kind of an overloaded word, usually indicates writing a 1, "write" is better?
 
 // Set an 8-bit register
 func (r *CpuRegisters) set_register(letter register8, value uint8) error {
-	if letter == regF {
+	switch letter {
+	case regA:
+		r.A = value
+	case regF:
 		// Lower 4 bits of F cannot be set
-		value &= 0xF0
+		r.F = value & 0xF0
+	case regB:
+		r.B = value
+	case regC:
+		r.C = value
+	case regD:
+		r.D = value
+	case regE:
+		r.E = value
+	case regH:
+		r.H = value
+	case regL:
+		r.L = value
+	default:
+		return fmt.Errorf("tried to set nonexistent 8 bit register %s", letter)
 	}
-	s := reflect.ValueOf(r).Elem()
-	structField := s.FieldByName(letter.String())
-	structField.SetUint(uint64(value))
 	return nil
 }
 

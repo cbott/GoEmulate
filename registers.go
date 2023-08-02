@@ -4,16 +4,11 @@ package main
 
 type register8 interface {
 	register8Method()
-	String() string
 }
 
 type register8Name string
 
 func (r register8Name) register8Method() {}
-
-func (r register8Name) String() string {
-	return string(r)
-}
 
 const (
 	regA register8Name = "A"

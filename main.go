@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/color"
+	"math"
 	"time"
 
 	"github.com/faiface/pixel"
@@ -17,14 +18,19 @@ func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[Scr
 		}
 	}
 
-	// TODO: figure out why we're doing this, for now just clearing with red so we see if it is a problem
-	// Seems like sprites should just go over it all
-	// bg := color.RGBA{R: 0x08, G: 0x18, B: 0x20, A: 0xFF}
-	bg := color.RGBA{R: 0xB0, G: 0x00, B: 0x00, A: 0xFF}
+	// Clear the screen, also sets color for areas of window not filled by Game Boy screen
+	bg := color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}
 	window.Clear(bg)
 
+	// Scale the Game Boy screen to maximize the size within the window
+	// scale = min(windowX/gameboyX, windowY/gameboyY)
+	windowSize := window.Bounds().Size()
+	divisor := pixel.V(1.0/ScreenWidth, 1.0/ScreenHeight)
+	scale := math.Min(windowSize.ScaledXY(divisor).XY())
+
+	// Draw the Game Boy screen to the window
 	sprite := pixel.NewSprite(pixel.Picture(picture), pixel.R(0, 0, ScreenWidth, ScreenHeight))
-	sprite.Draw(window, pixel.IM.Moved(window.Bounds().Center()))
+	sprite.Draw(window, pixel.IM.Scaled(pixel.ZV, scale).Moved(window.Bounds().Center()))
 
 	window.Update()
 }
@@ -42,9 +48,10 @@ func CreateGameBoy() *Gameboy {
 
 func run() {
 	cfg := pixelgl.WindowConfig{
-		Title:  "Game Boy Emulator",
-		Bounds: pixel.R(0, 0, ScreenWidth, ScreenHeight),
-		VSync:  true,
+		Title:     "Game Boy Emulator",
+		Bounds:    pixel.R(0, 0, ScreenWidth, ScreenHeight),
+		VSync:     true,
+		Resizable: true,
 	}
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {

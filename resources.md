@@ -34,10 +34,3 @@ go build
 ------
 DAA = Decimal Adjust after Addition
 BCD = Binary Coded Decimal
-
-
-TODO:
------
-Add unit tests, for example things like
-- perform an add and check carry bit is set
-- perform an add and check carry bit is added in
