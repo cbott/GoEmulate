@@ -1,17 +1,17 @@
 package main
 
-var cbRegisterOrder = []string{
-	"B",
-	"C",
-	"D",
-	"E",
-	"H",
-	"L",
-	"(HL)",
-	"A",
+var cbRegisterOrder = []register8{
+	regB,
+	regC,
+	regD,
+	regE,
+	regH,
+	regL,
+	nil, // (HL)
+	regA,
 }
 
-var cbInstructionOrder = []func(*Gameboy, string){
+var cbInstructionOrder = []func(*Gameboy, register8){
 	cbRLC, cbRRC,
 	cbRL, cbRR,
 	cbSLA, cbSRA,
@@ -31,33 +31,35 @@ var cbInstructionOrder = []func(*Gameboy, string){
 }
 
 // Wrapper on get_register to account for (HL) access
-func cbRegisterGet(gb *Gameboy, reg string) uint8 {
-	if reg == "(HL)" {
-		return gb.memory.get(gb.cpu.get_register16("HL"))
+func cbRegisterGet(gb *Gameboy, reg register8) uint8 {
+	if reg == nil {
+		// (HL)
+		return gb.memory.get(gb.cpu.get_register16(regHL))
 	} else {
 		return gb.cpu.get_register(reg)
 	}
 }
 
 // Wrapper on set_register to account for (HL) access
-func cbRegisterSet(gb *Gameboy, reg string, value uint8) {
-	if reg == "(HL)" {
-		gb.memory.set(gb.cpu.get_register16("HL"), value)
+func cbRegisterSet(gb *Gameboy, reg register8, value uint8) {
+	if reg == nil {
+		// (HL)
+		gb.memory.set(gb.cpu.get_register16(regHL), value)
 	} else {
 		gb.cpu.set_register(reg, value)
 	}
 }
 
 // Partial() allows us to pre-specify the bit argument for BIT/RES/SET calls
-func cbPartial(f func(*Gameboy, string, uint8), bit uint8) func(*Gameboy, string) {
-	partialfunc := func(gb *Gameboy, reg string) {
+func cbPartial(f func(*Gameboy, register8, uint8), bit uint8) func(*Gameboy, register8) {
+	partialfunc := func(gb *Gameboy, reg register8) {
 		f(gb, reg, bit)
 	}
 	return partialfunc
 }
 
 // Rotate Left and set Carry bit
-func cbRLC(gb *Gameboy, reg string) {
+func cbRLC(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	carrybit := value >> 7
@@ -71,7 +73,7 @@ func cbRLC(gb *Gameboy, reg string) {
 }
 
 // Rotate Right and set Carry bit
-func cbRRC(gb *Gameboy, reg string) {
+func cbRRC(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	carrybit := value & 1
@@ -85,7 +87,7 @@ func cbRRC(gb *Gameboy, reg string) {
 }
 
 // Rotate Left through carry bit
-func cbRL(gb *Gameboy, reg string) {
+func cbRL(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	var oldcarry uint8 = 0
@@ -103,7 +105,7 @@ func cbRL(gb *Gameboy, reg string) {
 }
 
 // Rotate Right through carry bit
-func cbRR(gb *Gameboy, reg string) {
+func cbRR(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	var oldcarry uint8 = 0
@@ -121,7 +123,7 @@ func cbRR(gb *Gameboy, reg string) {
 }
 
 // Shift Left into carry, set lsb to 0
-func cbSLA(gb *Gameboy, reg string) {
+func cbSLA(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	carrybit := value >> 7
@@ -135,7 +137,7 @@ func cbSLA(gb *Gameboy, reg string) {
 }
 
 // Shift Right into carry, do not change msb
-func cbSRA(gb *Gameboy, reg string) {
+func cbSRA(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	carrybit := value & 1
@@ -149,7 +151,7 @@ func cbSRA(gb *Gameboy, reg string) {
 }
 
 // Swap low and high nybbles
-func cbSWAP(gb *Gameboy, reg string) {
+func cbSWAP(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	result := (value << 4) | (value >> 4)
@@ -162,7 +164,7 @@ func cbSWAP(gb *Gameboy, reg string) {
 }
 
 // Shift Right into carry, set msb to 0
-func cbSRL(gb *Gameboy, reg string) {
+func cbSRL(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	carrybit := value & 1
@@ -176,19 +178,19 @@ func cbSRL(gb *Gameboy, reg string) {
 }
 
 // Test bit in register
-func cbBIT(gb *Gameboy, reg string, bit uint8) {
+func cbBIT(gb *Gameboy, reg register8, bit uint8) {
 	gb.cpu.set_flag(FlagZ, cbRegisterGet(gb, reg)&(1<<bit) == 0)
 	gb.cpu.set_flag(FlagN, false)
 	gb.cpu.set_flag(FlagH, true)
 }
 
 // Reset bit in register
-func cbRES(gb *Gameboy, reg string, bit uint8) {
+func cbRES(gb *Gameboy, reg register8, bit uint8) {
 	cbRegisterSet(gb, reg, cbRegisterGet(gb, reg) & ^(1<<bit))
 }
 
 // Set bit in register
-func cbSET(gb *Gameboy, reg string, bit uint8) {
+func cbSET(gb *Gameboy, reg register8, bit uint8) {
 	cbRegisterSet(gb, reg, cbRegisterGet(gb, reg)|(1<<bit))
 }
 
@@ -196,17 +198,18 @@ func cbSET(gb *Gameboy, reg string, bit uint8) {
 func (gb *Gameboy) CBOpcode(opcode uint8) int {
 	// CB instructions have a regular pattern so we can avoid hard coding things
 	column := (opcode & 0xF) % 8
-	register := cbRegisterOrder[column]
+	reg := cbRegisterOrder[column]
 	function := cbInstructionOrder[opcode/8]
 
-	function(gb, register)
+	function(gb, reg)
 
 	if opcode == 0x4e || opcode == 0x5e || opcode == 0x6e || opcode == 0x7e {
 		// TODO: Several emulators I've looked at call these operations 3 cycles
 		// but most documentation says 4, need to pick the right one and implement cleanly
 		return 3
 	}
-	if register == "(HL)" {
+	if reg == nil {
+		// (HL)
 		return 4
 	}
 	return 2

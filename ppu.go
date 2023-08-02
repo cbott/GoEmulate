@@ -172,11 +172,11 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 		// Current line is in V-Blank section
 		newMode = DisplayModeVBlank
 		interrupt = (status & STAT_vblank_interrupt) != 0
-	} else if gb.currentScanX < OAMSearchCycles {
+	} else if gb.currentScanX <= OAMSearchCycles {
 		// Current line is a displayed row, and current scan is in OAM Search section
 		newMode = DisplayModeOAMSearch
 		interrupt = (status & STAT_oam_interrupt) != 0
-	} else if gb.currentScanX < PixelTransferCycles+OAMSearchCycles {
+	} else if gb.currentScanX <= PixelTransferCycles+OAMSearchCycles {
 		// Current line is a displayed row, and current scan is in Pixel Transfer section
 		newMode = DisplayModePixelTransfer
 		// There are no interrupts triggered on Pixel Transfer mode
