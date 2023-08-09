@@ -1,17 +1,14 @@
 package main
 
-import (
-	"fmt"
-	"io/ioutil"
-)
-
 /*
 0000              8000        A000           C000       E000         FE00      FEA0     FF00    FF80
 | ROM (cartridge) | Video RAM | External RAM | RAM      | Unused     | OAM RAM | Unused | I/O   | HRAM
 */
 
 const (
-	CartridgeEndAddress = 0x8000
+	CartridgeEndAddress     = 0x8000
+	ExternalRAMStartAddress = 0xA000
+	ExternalRAMEndAddress   = 0xC000
 	// Memory address of flag indicating whether to load from Boot ROM or cartrige address space
 	BOOT = 0xFF50
 )
@@ -183,8 +180,10 @@ func (m *Memory) get(address uint16) uint8 {
 		return m.bootrom[address]
 	}
 
-	// Address space 0-8000 is mapped to the cartridge
-	if address < CartridgeEndAddress {
+	// Address space 0-8000 is mapped to the cartridge ROM
+	// Address space A000-C000 is mapped to cartridge RAM
+	if address < CartridgeEndAddress ||
+		(address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress) {
 		if m.cartridge == nil {
 			panic("Attempted to access cartridge before one is loaded")
 		}
@@ -226,15 +225,6 @@ func (m *Memory) performDMATransfer(source uint8) {
 	for index = 0; index <= 0x9F; index++ {
 		m.set(OAMRamAddressStart+index, m.get(source_address+index))
 	}
-}
-
-func (m *Memory) LoadROMFile(filename string) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		panic(fmt.Sprintf("Unable to load ROM file %s", filename))
-	}
-	// TODO: Actually check the cartridge type and use the right one
-	m.cartridge = &ROMOnlyCartridge{rom: data}
 }
 
 // Set memory to the state it would be in after boot ROM runs

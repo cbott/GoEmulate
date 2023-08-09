@@ -69,7 +69,7 @@ func run() {
 		gb.memory.BypassBootROM()
 		gb.cpu.BypassBootROM()
 	}
-	gb.memory.LoadROMFile("roms/tetris.gb")
+	gb.LoadCartridge(parseCartridgeFile("roms/pokemon_red.gb"))
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),
