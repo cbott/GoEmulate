@@ -208,6 +208,8 @@ func (m *Memory) get(address uint16) uint8 {
 
 	// In most cases we just read a raw value
 	return m.memory[address]
+
+	// TODO: Implement E000 as echo RAM?
 }
 
 func (m *Memory) Init() {
