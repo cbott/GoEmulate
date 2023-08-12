@@ -9,6 +9,8 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 )
 
+const DefaultScale = 4
+
 func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[ScreenWidth][ScreenHeight][3]uint8) {
 	for y := 0; y < ScreenHeight; y++ {
 		for x := 0; x < ScreenWidth; x++ {
@@ -49,7 +51,7 @@ func CreateGameBoy() *Gameboy {
 func run() {
 	cfg := pixelgl.WindowConfig{
 		Title:     "Game Boy Emulator",
-		Bounds:    pixel.R(0, 0, ScreenWidth, ScreenHeight),
+		Bounds:    pixel.R(0, 0, ScreenWidth*DefaultScale, ScreenHeight*DefaultScale),
 		VSync:     true,
 		Resizable: true,
 	}

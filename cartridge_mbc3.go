@@ -81,12 +81,12 @@ func (c *MemoryBankController3Cartridge) ReadFrom(address uint16) uint8 {
 
 		// We have selected a RAM bank to be active
 		if c.ramBank < 8 {
-			if c.ramBank >= c.numRamBanks {
-				// TODO: define correct behavior
-				panic("Attempted to read from RAM bank outside of range")
-			}
+			// if c.ramBank >= c.numRamBanks {
+			// 	// TODO: define correct behavior
+			// 	panic("Attempted to read from RAM bank outside of range")
+			// }
 			// Set the value in the appropriate RAM bank
-			return c.ram[c.ramBank][address-ExternalRAMStartAddress]
+			return c.ram[c.ramBank&(c.numRamBanks-1)][address-ExternalRAMStartAddress]
 		}
 
 		// We have selected a RTC register to be active
@@ -117,6 +117,10 @@ func (c *MemoryBankController3Cartridge) WriteTo(address uint16, value uint8) {
 	// RAM Bank Select
 	if address >= 4000 && address <= 0x5FFF {
 		// Can set 0-3 to select RAM bank or 8-C to instead read the RTC registers
+		if value&0xF > 0xC {
+			// TODO: debug only, not sure what we're supposed to do
+			return
+		}
 		c.ramBank = value & 0xF
 	}
 
@@ -133,13 +137,13 @@ func (c *MemoryBankController3Cartridge) WriteTo(address uint16, value uint8) {
 
 		// We have selected a RAM bank to be active
 		if c.ramBank < 8 {
-			if c.ramBank >= c.numRamBanks {
-				// TODO: check whether this is correct behavior
-				// for now we will ignore writes to invalid RAM banks
-				return
-			}
+			// if c.ramBank >= c.numRamBanks {
+			// 	// TODO: check whether this is correct behavior
+			// 	// for now we will ignore writes to invalid RAM banks
+			// 	return
+			// }
 			// Set the value in the appropriate RAM bank
-			c.ram[c.ramBank][address-ExternalRAMStartAddress] = value
+			c.ram[c.ramBank&(c.numRamBanks-1)][address-ExternalRAMStartAddress] = value
 		}
 
 		// We have selected a RTC register to be active

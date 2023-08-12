@@ -14,6 +14,5 @@ func (c *ROMOnlyCartridge) ReadFrom(address uint16) uint8 {
 }
 
 func (c *ROMOnlyCartridge) WriteTo(address uint16, value uint8) {
-	// TODO: do we need to support RAM here too?
-	panic("Cannot write to ROM Only Cartridge")
+	// Writes to ROM cartridge are no-ops
 }

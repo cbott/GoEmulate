@@ -168,6 +168,9 @@ func (m *Memory) set(address uint16, value uint8) {
 	} else if address == JOYPAD {
 		// Only bits 4 and 5 of the P1 register are writeable
 		m.memory[address] = (m.memory[address] & 0xF) | (value & 0b00110000)
+	} else if address < CartridgeEndAddress ||
+		address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
+		m.cartridge.WriteTo(address, value)
 	} else {
 		m.memory[address] = value
 	}
@@ -182,11 +185,14 @@ func (m *Memory) get(address uint16) uint8 {
 
 	// Address space 0-8000 is mapped to the cartridge ROM
 	// Address space A000-C000 is mapped to cartridge RAM
-	if address < CartridgeEndAddress ||
-		(address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress) {
+	if address < CartridgeEndAddress {
 		if m.cartridge == nil {
 			panic("Attempted to access cartridge before one is loaded")
 		}
+		return m.cartridge.ReadFrom(address)
+	}
+
+	if address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
 		return m.cartridge.ReadFrom(address)
 	}
 

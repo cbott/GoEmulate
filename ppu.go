@@ -407,7 +407,7 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 		xCoordsAlreadyDrawn[i] = 255 // arbitrarilly set to something off-screen
 	}
 
-	// Iterate throug all sprites in OAM RAM
+	// Iterate through all sprites in OAM RAM
 	var spritesOnLine uint8
 
 	var spriteNum uint8
@@ -445,18 +445,11 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 		var columnInTile uint8
 
 		for columnInTile = 0; columnInTile < 8; columnInTile++ {
-			pixelX := xPos + int16(7-columnInTile)
+			pixelX := xPos + int16(columnInTile)
 			// If the pixel is off the screen, skip
 			if pixelX < 0 || pixelX >= ScreenWidth {
 				continue
 			}
-
-			// Check if this pixel has already been drawn by a sprite with an equal or lower X position
-			// if so, we have lower priority so do not re-draw
-			if xPos >= xCoordsAlreadyDrawn[pixelX] {
-				continue
-			}
-			xCoordsAlreadyDrawn[pixelX] = xPos
 
 			// Flip X if applicable
 			columnWithFlip := columnInTile
@@ -473,10 +466,17 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 				pixelColor |= 0b10
 			}
 
-			// Skip if transparent
+			// Pixel color of 0 is transparent, skip drawing
 			if pixelColor == 0 {
 				continue
 			}
+
+			// Check if this pixel has already been drawn by a sprite with an equal or lower X position
+			// if so, we have lower priority so do not re-draw
+			if xPos >= xCoordsAlreadyDrawn[pixelX] {
+				continue
+			}
+			xCoordsAlreadyDrawn[pixelX] = xPos
 
 			var palette uint8
 			if flags&SpriteFlagPalette == 0 {
