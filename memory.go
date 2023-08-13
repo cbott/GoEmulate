@@ -171,6 +171,8 @@ func (m *Memory) set(address uint16, value uint8) {
 	} else if address < CartridgeEndAddress ||
 		address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
 		m.cartridge.WriteTo(address, value)
+	} else if (address >= 0xFF10 && address <= 0xFF26) || (address >= 0xFF30 && address <= 0xFF3F) {
+		// TODO: temporary - skip sound things
 	} else {
 		m.memory[address] = value
 	}
@@ -194,6 +196,11 @@ func (m *Memory) get(address uint16) uint8 {
 
 	if address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
 		return m.cartridge.ReadFrom(address)
+	}
+
+	if (address >= 0xFF10 && address <= 0xFF26) || (address >= 0xFF30 && address <= 0xFF3F) {
+		// TODO: temporary, disable sound stuff
+		return 0x00
 	}
 
 	// Top 3 bits of IF register are unused and always read high

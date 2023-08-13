@@ -28,7 +28,7 @@ type MemoryBankController1Cartridge struct {
 	ramMode bool
 }
 
-func MakeMBC1Cartridge(data []uint8) *MemoryBankController1Cartridge {
+func NewMBC1Cartridge(data []uint8) *MemoryBankController1Cartridge {
 	c := MemoryBankController1Cartridge{rom: data}
 	// TODO: reduce duplication with cartridge detection
 	// TODO: validate cartridge values match actual file size/headers

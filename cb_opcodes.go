@@ -203,7 +203,8 @@ func (gb *Gameboy) CBOpcode(opcode uint8) int {
 
 	function(gb, reg)
 
-	if opcode == 0x4e || opcode == 0x5e || opcode == 0x6e || opcode == 0x7e {
+	if opcode == 0x4e || opcode == 0x5e || opcode == 0x6e || opcode == 0x7e ||
+		opcode == 0x46 || opcode == 0x56 || opcode == 0x66 || opcode == 0x76 {
 		// TODO: Several emulators I've looked at call these operations 3 cycles
 		// but most documentation says 4, need to pick the right one and implement cleanly
 		return 3

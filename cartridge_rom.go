@@ -5,7 +5,7 @@ type ROMOnlyCartridge struct {
 	rom []uint8
 }
 
-func MakeROMOnlyCartridge(data []uint8) *ROMOnlyCartridge {
+func NewROMOnlyCartridge(data []uint8) *ROMOnlyCartridge {
 	return &ROMOnlyCartridge{rom: data}
 }
 

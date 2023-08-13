@@ -367,6 +367,19 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 
 		// Set the appropriate pixel of the screen buffer
 		red, green, blue := getColorFromPalette(pixelColor, palette)
+		if drawWindow && absoluteX >= windowX {
+			red = uint8(float32(red) * 0.75)
+			blue = uint8(float32(blue) * 0.75)
+			if green == 0 {
+				green += 50
+			}
+		} else {
+			red = uint8(float32(red) * 0.75)
+			green = uint8(float32(green) * 0.75)
+			if blue == 0 {
+				blue += 50
+			}
+		}
 		gb.screenData[absoluteX][lineNumber][0] = red
 		gb.screenData[absoluteX][lineNumber][1] = green
 		gb.screenData[absoluteX][lineNumber][2] = blue
@@ -490,9 +503,12 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 			if (flags&SpriteFlagPriority == 0) || !bgPriority[pixelX] {
 				// Set the appropriate pixel of the screen buffer
 				red, green, blue := getColorFromPalette(pixelColor, palette)
+				if red == 0 {
+					red += 50
+				}
 				gb.screenData[pixelX][lineNumber][0] = red
-				gb.screenData[pixelX][lineNumber][1] = green
-				gb.screenData[pixelX][lineNumber][2] = blue
+				gb.screenData[pixelX][lineNumber][1] = uint8(float32(green) * 0.75)
+				gb.screenData[pixelX][lineNumber][2] = uint8(float32(blue) * 0.75)
 			}
 		}
 

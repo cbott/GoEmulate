@@ -2,8 +2,6 @@ package main
 
 import "fmt"
 
-// TODO: merge functionality with MBC1?
-
 // Real Time Clock registers
 // Address	Value				Range
 // 08		Seconds   			0-59
@@ -14,28 +12,36 @@ import "fmt"
 //                              Bit 6 = Halt (0=Active, 1=Stop Timer)
 //                              Bit 7 = Day Counter Carry Bit (1=Counter Overflow)
 
+const (
+	RTCBankStart = 0x08
+	NumRTCBanks  = 5
+)
+
 // Memory Bank Controller 3 Cartridge
 // 2MiB ROM / 32KiB RAM, Timer
 type MemoryBankController3Cartridge struct {
-	rom []uint8
-	ram [][RAMBankSize]uint8
+	rom        []uint8
+	ram        [][RAMBankSize]uint8
+	rtc        [NumRTCBanks]uint8
+	latchedrtc [NumRTCBanks]uint8
 
 	// Number of available 16MiB ROM banks we can switch between (2-512)
 	numRomBanks uint16
-
 	// Number of available 8MiB RAM banks we can switch between (0-4)
 	numRamBanks uint8
 
-	// currently selected ROM bank for 4000-7FFF
+	// Currently selected ROM bank for 4000-7FFF
 	romBank uint8
-	// currently selected RAM bank for A000-BFFF
-	// used as most significant 2 bits of ROM bank if ramMode is false
+	// Currently selected RAM bank or RTC register for A000-BFFF
 	ramBank uint8
 
+	// Whether RAM/RTC reading and writing are enabled
 	ramEnabled bool
+	// Whether this cartridge supports a real time clock
+	hasRTC bool
 }
 
-func MakeMBC3Cartridge(data []uint8) *MemoryBankController3Cartridge {
+func NewMBC3Cartridge(data []uint8) *MemoryBankController3Cartridge {
 	c := MemoryBankController3Cartridge{rom: data}
 	// TODO: reduce duplication with cartridge detection
 	// TODO: validate cartridge values match actual file size/headers
@@ -48,16 +54,23 @@ func MakeMBC3Cartridge(data []uint8) *MemoryBankController3Cartridge {
 	// Initialize RAM banks
 	c.ram = make([][RAMBankSize]uint8, c.numRamBanks)
 
+	// Cartridge types 0x0F and 0x10 have RTC hardware
+	cartridgeType := data[CartridgeTypeAddress]
+	if cartridgeType == 0x0F || cartridgeType == 0x10 {
+		c.hasRTC = true
+	}
+
 	return &c
 }
 
+// Read a value from MBC3 ROM or RAM
 func (c *MemoryBankController3Cartridge) ReadFrom(address uint16) uint8 {
-	// Bank 0 is fixed
+	// Read from ROM Bank 0 (fixed)
 	if address < ROMBankSize {
 		return c.rom[address]
 	}
 
-	// Bank 1 is switched
+	// Read from ROM Bank 1 (switched)
 	if address < CartridgeEndAddress {
 		var bank uint8 = c.romBank
 
@@ -67,12 +80,10 @@ func (c *MemoryBankController3Cartridge) ReadFrom(address uint16) uint8 {
 		}
 
 		offset := uint32(bank-1) * ROMBankSize
-
 		return c.rom[uint32(address)+offset]
 	}
 
-	// RAM
-	// TODO: reduce duplication with Write
+	// Read from RAM
 	if address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
 		// Reading from RAM when not enabled is undefined
 		if !c.ramEnabled {
@@ -80,79 +91,64 @@ func (c *MemoryBankController3Cartridge) ReadFrom(address uint16) uint8 {
 		}
 
 		// We have selected a RAM bank to be active
-		if c.ramBank < 8 {
-			// if c.ramBank >= c.numRamBanks {
-			// 	// TODO: define correct behavior
-			// 	panic("Attempted to read from RAM bank outside of range")
-			// }
-			// Set the value in the appropriate RAM bank
-			return c.ram[c.ramBank&(c.numRamBanks-1)][address-ExternalRAMStartAddress]
+		if c.ramBank < c.numRamBanks {
+			// Read from selcted RAM bank
+			return c.ram[c.ramBank][address-ExternalRAMStartAddress]
 		}
 
 		// We have selected a RTC register to be active
-		if c.ramBank < 0xD {
-			// TODO: implement RTC
-			return 0x00
+		if c.hasRTC && c.ramBank >= RTCBankStart && c.ramBank < RTCBankStart+NumRTCBanks {
+			return c.rtc[c.ramBank-RTCBankStart]
 		}
 
-		// TODO: define correct behavior
-		panic("Attempted to read from invalid RAM bank")
+		panic(fmt.Sprintf("Attempted to read from invalid RAM bank 0x%X", c.ramBank))
 	}
 
+	// If reading from invalid address we will panic for debugging but hardware may behave differently
 	panic(fmt.Sprintf("Attempted to read from undefined Cartridge address 0x%X", address))
 }
 
+// Write a value to MBC3 control registers or RAM
 func (c *MemoryBankController3Cartridge) WriteTo(address uint16, value uint8) {
-	// RAM Enable Select
-	if address <= 0x1FFF {
+	switch address >> 12 {
+	case 0, 1:
+		// RAM Enable Select (0000-1FFF)
 		c.ramEnabled = (value & 0xF) == 0xA
-	}
-
-	// ROM Bank Select
-	if address >= 0x2000 && address <= 0x3FFF {
-		// TOOD: mask correctly based on actual ROM size (compare to numRomBanks)
+	case 2, 3:
+		// ROM Bank Select (2000-3FFF)
 		c.romBank = value & 0b1111111
-	}
-
-	// RAM Bank Select
-	if address >= 4000 && address <= 0x5FFF {
-		// Can set 0-3 to select RAM bank or 8-C to instead read the RTC registers
-		if value&0xF > 0xC {
-			// TODO: debug only, not sure what we're supposed to do
-			return
-		}
+	case 4, 5:
+		// RAM Bank Select (4000-5FFF)
+		// Can set 0-3 to select RAM bank or 8-C to select a RTC register
+		// Mask to lower 4 bits only, though this should never matter, unclear what proper handling is
 		c.ramBank = value & 0xF
-	}
-
-	// Latch Clock Data
-	// if address >= 0x6000 && address <= 0x7FFF {
-	// }
-
-	// RAM
-	if address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
-		// RAM must be enabled before writing to it
+	case 6, 7:
+		// Latch clock data (6000-7FFF)
+		// The proper method for latching the clock is actually to write 0x00 followed by 0x01
+		// but we will be more permissive here, some sources suggest writing 0x01 is all you need
+		if value == 0x01 {
+			for i := 0; i < NumRTCBanks; i++ {
+				c.latchedrtc[i] = c.rtc[i]
+			}
+		}
+	case 0xA, 0xB:
+		// Write to RAM or RTC Register (A000-BFFF)
+		// Writing to RAM/RTC when not enabled does nothing
 		if !c.ramEnabled {
 			return
 		}
 
-		// We have selected a RAM bank to be active
-		if c.ramBank < 8 {
-			// if c.ramBank >= c.numRamBanks {
-			// 	// TODO: check whether this is correct behavior
-			// 	// for now we will ignore writes to invalid RAM banks
-			// 	return
-			// }
+		if c.ramBank < c.numRamBanks {
+			// We have selected a RAM bank to be active
 			// Set the value in the appropriate RAM bank
-			c.ram[c.ramBank&(c.numRamBanks-1)][address-ExternalRAMStartAddress] = value
+			c.ram[c.ramBank][address-ExternalRAMStartAddress] = value
+		} else if c.hasRTC && c.ramBank >= RTCBankStart && c.ramBank < RTCBankStart+NumRTCBanks {
+			// We have selected a RTC register to be active
+			// Write the value in the RTC register
+			c.rtc[c.ramBank-RTCBankStart] = value
 		}
-
-		// We have selected a RTC register to be active
-		// if c.ramBank < 0xD {
-		// TODO: implement RTC
-		// }
-
-		// If a RAM bank is selected which is not valid we will ignore it
+	default:
+		// Our cartridge will ignore writes to invalid addresses
+		return
 	}
-
-	// TODO: handle writes to invalid address? - some other emulators just do nothing
 }

@@ -11,16 +11,20 @@ GoEmulate is a learning project, and the first emulator I have ever even attempt
 
 
 To Do List
-- other cartridge types
 - code cleanup/resolve todos
 - implement sound
-- allow loading files from cmd line argument
 - reorganize into packages
+- RAM saving and CPU save states
+- fix display bug with window over background
+- allow loading files from cmd line argument
 - more unit tests
 - better error handling
 - allow loading files from GUI or similar
+- other cartridge types
+- implement serial
 
 Completed Tasks
 - longer compare with goboy
 - access registers by enum
 - window scaling
+- MBC3 cartridge type

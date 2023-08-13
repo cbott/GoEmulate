@@ -74,8 +74,6 @@ type Cartridge interface {
 
 // Read a cartridge binary file and return the correct cartridge type containing the file contents
 func parseCartridgeFile(filename string) Cartridge {
-	// TODO: better error handling
-
 	// Load cartridge binary data
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -104,15 +102,20 @@ func parseCartridgeFile(filename string) Cartridge {
 	fmt.Printf("ROM Size: %d KiB\n", romSize)
 	fmt.Printf("RAM Size: %d KiB\n", ramSize)
 
+	// Validate ROM Size listed in the cartridge header
+	if romSize*1024 != len(data) {
+		panic(fmt.Sprintf("ROM size in cartridge header does not match file size\nHeader:\t%d B\nFile:\t%d B",
+			romSize*1024, len(data)))
+	}
+
 	// Return correct cartridge type for this file
 	switch cartridgeType {
 	case 0x00:
-		return MakeROMOnlyCartridge(data)
+		return NewROMOnlyCartridge(data)
 	case 0x01:
-		return MakeMBC1Cartridge(data)
+		return NewMBC1Cartridge(data)
 	case 0x0F, 0x10, 0x11, 0x12, 0x13:
-		// TODO: add validation that cartridge contents match expectation set by header?
-		return MakeMBC3Cartridge(data)
+		return NewMBC3Cartridge(data)
 	default:
 		panic(fmt.Sprintf("Cartridge type %d not implemented", cartridgeType))
 	}

@@ -104,7 +104,7 @@ func (gb *Gameboy) RunNextOpcode() int {
 		fmt.Printf("debug\n")
 	}
 
-	if gb.debugCounter < 0 {
+	if gb.debugCounter < -4000000 {
 		f, err := os.OpenFile("gb_results.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic("unable to open log")
