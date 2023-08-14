@@ -904,6 +904,7 @@ func (gb *Gameboy) Opcode(opcode uint8) int {
 	/////////////// Misc ////////////////////
 	case 0x27:
 		// DAA
+		// (Decimal Adjust after Addition)
 		// Decimal adjust register A for binary coded decimal after an add or subtract
 		a := uint16(gb.cpu.getRegister(regA))
 
