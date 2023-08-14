@@ -11,16 +11,43 @@ GoEmulate is a learning project, and the first emulator I have ever even attempt
 
 
 To Do List
-- other cartridge types
-- code cleanup/resolve todos
+----------
 - implement sound
-- allow loading files from cmd line argument
 - reorganize into packages
+- RAM saving and CPU save states
+- fix display bug with window over background
+- allow loading files from cmd line argument
 - more unit tests
 - better error handling
 - allow loading files from GUI or similar
+- other cartridge types
+- implement serial
 
 Completed Tasks
 - longer compare with goboy
 - access registers by enum
 - window scaling
+- MBC3 cartridge type
+- code cleanup/resolve todos
+
+Setup
+-----
+Per pixel requirements https://github.com/faiface/pixel#requirements
+```
+sudo apt install libgl1-mesa-dev
+sudo apt install xorg-dev
+```
+
+Development Resources
+---
+Other emulators used for comparison
+- (go) https://github.com/Humpheh/goboy
+- (java) https://github.com/trekawek/coffee-gb
+- (rust) https://github.com/Gekkio/mooneye-gb
+- (c) https://github.com/AntonioND/giibiiadvance
+
+Game Boy docs:
+- https://izik1.github.io/gbops/index.html
+- http://bgb.bircd.org/pandocs.htm#cpuinstructionset
+- http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
+- https://gbdev.io/pandocs/Specifications.html

@@ -32,12 +32,6 @@ const (
 	BUTTON_A      = pixelgl.KeyA
 )
 
-// TODO: not a lot of stuff in this struct, can we simplify? Or can we move more functionality in?
-type Joypad struct {
-	// Stores the state of each joypad button (down/up/left/right/start/select/B/A)
-	ButtonStates uint8
-}
-
 // Update the Joypad button states with what is currently pressed on the keyboard
 // and requests an interrupt if a button just became pressed
 func (gb *Gameboy) ReadKeyboard(pixelWindow *pixelgl.Window) {
@@ -75,32 +69,38 @@ func (gb *Gameboy) ReadKeyboard(pixelWindow *pixelgl.Window) {
 	// Perform an interrupt if any button went from unpressed to pressed
 	var doInterrupt bool = false
 	for i := 0; i < 8; i++ {
-		if (gb.joypad.ButtonStates&(1<<i) != 0) && (state&(1<<i) == 0) {
+		if (gb.memory.ButtonStates&(1<<i) != 0) && (state&(1<<i) == 0) {
 			doInterrupt = true
 		}
 	}
 
-	gb.joypad.ButtonStates = state
+	gb.memory.ButtonStates = state
 
 	if doInterrupt {
-		// TODO: also unclear if interrupt should be triggered when buttons not enabled
+		// For maximum parity with hardware we should only trigger this if the particular input
+		// row is enabled (P14/P15) but since we only run this function once prior to each frame
+		// and select bits can be changed during the frame we will assume games only check this
+		// interrupt if they are also enabling the inputs
 		gb.SetInterruptRequestFlag(Interrupt_joypad)
 	}
 }
 
 // Given register P1 with select bits set, return value of P1 with button state bits set as well
-func (jpad *Joypad) GetP1Value(p1 uint8) uint8 {
+func (m *Memory) GetP1Value() uint8 {
+	// Read the current P1 register value
+	p1 := m.memory[JOYPAD]
+
 	// Set top 2 bits (unused) and clear bottom 4 bits (button states)
 	p1 = (p1 & 0xF0) | 0xC0
 
 	// Fill in the bottom 4 bits with button states
 	var state uint8
 	if p1&JOYPAD_direction_buttons == 0 {
-		state |= ^((jpad.ButtonStates >> 4) & 0xF)
+		state |= ^((m.ButtonStates >> 4) & 0xF)
 	}
-	// TODO: not sure if this is correct behavior for when action+direction are both selected
+	// If both action and direction buttons are selected we will set the pair as pressed if either is pressed
 	if p1&JOYPAD_action_buttons == 0 {
-		state |= ^(jpad.ButtonStates & 0xF)
+		state |= ^(m.ButtonStates & 0xF)
 	}
 
 	p1 |= (^state) & 0xF

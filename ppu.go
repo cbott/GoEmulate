@@ -154,11 +154,9 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 		// LCD is not enabled
 		gb.currentScanX = 0
 		gb.memory.set(LY, 0)
-		// TODO: Setting to OAM search will mean we don't trigger an interrupt
+		// Note: Setting to OAM search will mean we don't trigger an interrupt
 		// when first enabling the LCD, not clear if that's correct
 		gb.SetDisplayMode(DisplayModeOAMSearch)
-		// fmt.Println("LCD not enabled")
-
 		gb.clearScreen()
 
 		return
@@ -197,19 +195,17 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 			gb.SetInterruptRequestFlag(Interrupt_lcd_stat)
 		}
 		gb.SetDisplayMode(newMode)
+		// Re-read status as setting the display mode has changed this
+		status = gb.memory.get(STAT)
 	}
-
-	// Re-read the status in case we updated the mode bits above
-	// TODO: could probably organize things better to avoid this
-	status = gb.memory.get(STAT)
 
 	if currentLine == gb.memory.get(LYC) {
 		// Set the LYC=LY flag
 		status |= STAT_lyc_eq_ly_flag
 		// Trigger an interrupt on this, if enabled
 		if (status & STAT_lyc_eq_ly_interrupt) != 0 {
-			// TODO: I think this is only supposed to trigger at the start of a line
-			// but as-written we set it multiple times per line?
+			// LYC=LY interrupt will trigger any time the condition is true
+			// (repeatedly throughout the drawing of this line)
 			gb.SetInterruptRequestFlag(Interrupt_lcd_stat)
 		}
 	} else {
@@ -225,15 +221,12 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 
 		if currentLine >= ScreenHeight+VBlankLines {
 			// We are past the bottom of the screen, so we've now drawn the full frame
-			gb.PreparedData = gb.screenData
-			// TODO: is this really the best way to clear it?
-			// and do we even need to clear it? We'll write over it later right?
-			gb.screenData = [ScreenWidth][ScreenHeight][3]uint8{}
+			//
 
 			currentLine = 0
 		}
 
-		// TODO: I think the idea here is that we don't set to 0 in case we didn't run this
+		// The idea here is that we don't set to 0 in case we didn't run this
 		// function right at the end of a row. We don't want to accumulate timing error.
 		gb.currentScanX -= CyclesPerLine
 
@@ -285,7 +278,7 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 	var tileMapStartAddress uint16
 	if drawWindow {
 		// If window is drawn on this line, use window map
-		// TODO: Does this work if window just covers part of the width?
+		// TODO: (future) verify behavior if window covers only a portion of the width
 		if (control & LCDC_window_map_select) == 0 {
 			tileMapStartAddress = 0x9800
 		} else {
@@ -367,6 +360,22 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 
 		// Set the appropriate pixel of the screen buffer
 		red, green, blue := getColorFromPalette(pixelColor, palette)
+
+		if UseDebugColors {
+			red = 0
+			if drawWindow && absoluteX >= windowX {
+				blue = 0
+				if green == 0 {
+					green += 50
+				}
+			} else {
+				green = 0
+				if blue == 0 {
+					blue += 50
+				}
+			}
+		}
+
 		gb.screenData[absoluteX][lineNumber][0] = red
 		gb.screenData[absoluteX][lineNumber][1] = green
 		gb.screenData[absoluteX][lineNumber][2] = blue
@@ -407,7 +416,7 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 		xCoordsAlreadyDrawn[i] = 255 // arbitrarilly set to something off-screen
 	}
 
-	// Iterate throug all sprites in OAM RAM
+	// Iterate through all sprites in OAM RAM
 	var spritesOnLine uint8
 
 	var spriteNum uint8
@@ -445,18 +454,11 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 		var columnInTile uint8
 
 		for columnInTile = 0; columnInTile < 8; columnInTile++ {
-			pixelX := xPos + int16(7-columnInTile)
+			pixelX := xPos + int16(columnInTile)
 			// If the pixel is off the screen, skip
 			if pixelX < 0 || pixelX >= ScreenWidth {
 				continue
 			}
-
-			// Check if this pixel has already been drawn by a sprite with an equal or lower X position
-			// if so, we have lower priority so do not re-draw
-			if xPos >= xCoordsAlreadyDrawn[pixelX] {
-				continue
-			}
-			xCoordsAlreadyDrawn[pixelX] = xPos
 
 			// Flip X if applicable
 			columnWithFlip := columnInTile
@@ -473,10 +475,17 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 				pixelColor |= 0b10
 			}
 
-			// Skip if transparent
+			// Pixel color of 0 is transparent, skip drawing
 			if pixelColor == 0 {
 				continue
 			}
+
+			// Check if this pixel has already been drawn by a sprite with an equal or lower X position
+			// if so, we have lower priority so do not re-draw
+			if xPos >= xCoordsAlreadyDrawn[pixelX] {
+				continue
+			}
+			xCoordsAlreadyDrawn[pixelX] = xPos
 
 			var palette uint8
 			if flags&SpriteFlagPalette == 0 {
@@ -490,32 +499,44 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 			if (flags&SpriteFlagPriority == 0) || !bgPriority[pixelX] {
 				// Set the appropriate pixel of the screen buffer
 				red, green, blue := getColorFromPalette(pixelColor, palette)
+
+				if UseDebugColors {
+					if red == 0 {
+						red += 50
+					}
+					green = 0
+					blue = 0
+				}
+
 				gb.screenData[pixelX][lineNumber][0] = red
 				gb.screenData[pixelX][lineNumber][1] = green
 				gb.screenData[pixelX][lineNumber][2] = blue
 			}
 		}
-
 	}
 }
 
-// Clear the screen - debug: set to yellow so we know it was intentional
+// Clear the screen
 func (gb *Gameboy) clearScreen() {
 	// Check if we have cleared the screen already
 	if gb.screenCleared {
 		return
 	}
 
-	// Set every pixel to white
+	// Set every pixel to white, or yellow for debug
+	var blue uint8 = 255
+	if UseDebugColors {
+		blue = 0
+	}
+
 	for x := 0; x < len(gb.screenData); x++ {
 		for y := 0; y < len(gb.screenData[x]); y++ {
 			gb.screenData[x][y][0] = 255
 			gb.screenData[x][y][1] = 255
-			gb.screenData[x][y][2] = 0
+			gb.screenData[x][y][2] = blue
 		}
 	}
 
-	// Push the cleared data right now
-	gb.PreparedData = gb.screenData
+	// Remember that we've already done this to avoid extra work
 	gb.screenCleared = true
 }

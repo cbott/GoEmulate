@@ -55,9 +55,8 @@ func (gb *Gameboy) RunInterrupts() int {
 
 	interruptPerformed := false
 
-	// Service each interrupt
+	// Service interrupts if requested
 	for i := 0; i < 5; i++ {
-		// TODO: this is kind of messy
 		if (request&(1<<i)) != 0 && (enabled&(1<<i)) != 0 {
 			// interrupt `i` is enabled
 			// reset this bit in the interrupt flag register
@@ -66,17 +65,16 @@ func (gb *Gameboy) RunInterrupts() int {
 			gb.interruptMasterEnable = false
 
 			// push current PC to the stack and jump to the interrupt address
-			gb.pushToStack16(gb.cpu.get_register16(regPC))
-			gb.cpu.set_register16(regPC, interruptAddresses[i])
+			gb.pushToStack16(gb.cpu.getRegister16(regPC))
+			gb.cpu.setRegister16(regPC, interruptAddresses[i])
 
-			// TODO: Do we really only process 1 interrupt each time?
+			// CPU will service only 1 interrupt at a time, highest priority first
 			interruptPerformed = true
 			break
 		}
 	}
 
 	if interruptPerformed {
-		// TODO: verify 20/0 is correct
 		return 20
 	}
 	return 0

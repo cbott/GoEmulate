@@ -34,9 +34,9 @@ var cbInstructionOrder = []func(*Gameboy, register8){
 func cbRegisterGet(gb *Gameboy, reg register8) uint8 {
 	if reg == nil {
 		// (HL)
-		return gb.memory.get(gb.cpu.get_register16(regHL))
+		return gb.memory.get(gb.cpu.getRegister16(regHL))
 	} else {
-		return gb.cpu.get_register(reg)
+		return gb.cpu.getRegister(reg)
 	}
 }
 
@@ -44,9 +44,9 @@ func cbRegisterGet(gb *Gameboy, reg register8) uint8 {
 func cbRegisterSet(gb *Gameboy, reg register8, value uint8) {
 	if reg == nil {
 		// (HL)
-		gb.memory.set(gb.cpu.get_register16(regHL), value)
+		gb.memory.set(gb.cpu.getRegister16(regHL), value)
 	} else {
-		gb.cpu.set_register(reg, value)
+		gb.cpu.setRegister(reg, value)
 	}
 }
 
@@ -91,7 +91,7 @@ func cbRL(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	var oldcarry uint8 = 0
-	if gb.cpu.get_flag(FlagC) {
+	if gb.cpu.getFlag(FlagC) {
 		oldcarry = 1
 	}
 	newcarry := value >> 7
@@ -109,7 +109,7 @@ func cbRR(gb *Gameboy, reg register8) {
 	value := cbRegisterGet(gb, reg)
 
 	var oldcarry uint8 = 0
-	if gb.cpu.get_flag(FlagC) {
+	if gb.cpu.getFlag(FlagC) {
 		oldcarry = 1
 	}
 	newcarry := value & 1
@@ -203,14 +203,14 @@ func (gb *Gameboy) CBOpcode(opcode uint8) int {
 
 	function(gb, reg)
 
-	if opcode == 0x4e || opcode == 0x5e || opcode == 0x6e || opcode == 0x7e {
-		// TODO: Several emulators I've looked at call these operations 3 cycles
-		// but most documentation says 4, need to pick the right one and implement cleanly
+	if reg != nil {
+		// All operations on registers A-L take 2 cycles
+		return 2
+	} else if opcode >= 0x40 && opcode <= 0x7F {
+		// (HL) bit operations take 3 cycles
 		return 3
-	}
-	if reg == nil {
-		// (HL)
+	} else {
+		// All other (HL) operations take 4 cycles
 		return 4
 	}
-	return 2
 }

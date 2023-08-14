@@ -39,20 +39,20 @@ func TestADC(t *testing.T) {
 	gb := CreateGameBoy()
 
 	for i, testcase := range testcases {
-		gb.cpu.set_register(regA, testcase.initialA)
-		gb.cpu.set_register(regB, testcase.initialB)
+		gb.cpu.setRegister(regA, testcase.initialA)
+		gb.cpu.setRegister(regB, testcase.initialB)
 		gb.cpu.set_flag(FlagC, testcase.initialC)
 
 		gb.Opcode(0x88) // ADC B
 
-		if gb.cpu.get_register(regA) != testcase.finalA ||
-			gb.cpu.get_flag(FlagZ) != testcase.finalZ ||
-			gb.cpu.get_flag(FlagN) != testcase.finalN ||
-			gb.cpu.get_flag(FlagH) != testcase.finalH ||
-			gb.cpu.get_flag(FlagC) != testcase.finalC {
+		if gb.cpu.getRegister(regA) != testcase.finalA ||
+			gb.cpu.getFlag(FlagZ) != testcase.finalZ ||
+			gb.cpu.getFlag(FlagN) != testcase.finalN ||
+			gb.cpu.getFlag(FlagH) != testcase.finalH ||
+			gb.cpu.getFlag(FlagC) != testcase.finalC {
 			t.Fatalf("Failed ADC test %v\nExpected {A=0x%x, Z=%t, N=%t, H=%t, C=%t}, Got {A=0x%x, Z=%t, N=%t, H=%t, C=%t}",
 				i, testcase.finalA, testcase.finalZ, testcase.finalN, testcase.finalH, testcase.finalC,
-				gb.cpu.get_register(regA), gb.cpu.get_flag(FlagZ), gb.cpu.get_flag(FlagN), gb.cpu.get_flag(FlagH), gb.cpu.get_flag(FlagC))
+				gb.cpu.getRegister(regA), gb.cpu.getFlag(FlagZ), gb.cpu.getFlag(FlagN), gb.cpu.getFlag(FlagH), gb.cpu.getFlag(FlagC))
 		}
 	}
 
@@ -73,17 +73,17 @@ func TestDAA(t *testing.T) {
 	gb := CreateGameBoy()
 
 	for _, testcase := range testcases {
-		gb.cpu.set_register(regA, testcase.initialValue)
+		gb.cpu.setRegister(regA, testcase.initialValue)
 		gb.cpu.set_flag(FlagN, testcase.initialN)
 		gb.cpu.set_flag(FlagH, testcase.initialH)
 		gb.cpu.set_flag(FlagC, testcase.initialC)
 
 		gb.Opcode(0x27)
 
-		finalValue := gb.cpu.get_register(regA)
-		finalZ := gb.cpu.get_flag(FlagZ)
-		finalH := gb.cpu.get_flag(FlagH)
-		finalC := gb.cpu.get_flag(FlagC)
+		finalValue := gb.cpu.getRegister(regA)
+		finalZ := gb.cpu.getFlag(FlagZ)
+		finalH := gb.cpu.getFlag(FlagH)
+		finalC := gb.cpu.getFlag(FlagC)
 
 		if finalValue != testcase.finalValue || finalZ != testcase.finalZ || finalH != testcase.finalH || finalC != testcase.finalC {
 			t.Fatalf("DAA operation on {A=0x%x, N=%t, H=%t, C=%t} resulted in {A=0x%x, Z=%t, H=%t, C=%t}, expected {A=0x%x, Z=%t, H=%t, C=%t}",
