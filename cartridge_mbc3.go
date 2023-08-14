@@ -43,14 +43,11 @@ type MemoryBankController3Cartridge struct {
 
 func NewMBC3Cartridge(data []uint8) *MemoryBankController3Cartridge {
 	c := MemoryBankController3Cartridge{rom: data}
-	// TODO: reduce duplication with cartridge detection
-	// TODO: validate cartridge values match actual file size/headers
 	c.numRomBanks = 1 << (data[ROMSizeAddress] + 1)
 
 	ramSizeKey := data[RAMSizeAddress]
 	ramSize := ramSizeMap[ramSizeKey]
-	// 8KiB per bank
-	c.numRamBanks = uint8(ramSize / 8)
+	c.numRamBanks = uint8(ramSize / 8) // 8KiB per bank
 	// Initialize RAM banks
 	c.ram = make([][RAMBankSize]uint8, c.numRamBanks)
 

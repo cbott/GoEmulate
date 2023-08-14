@@ -9,7 +9,14 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 )
 
-const DefaultScale = 4
+// Emulator settings
+// SkipBoot: Skip running the bootrom and begin execution from cartridge immediately
+// UseDebugColors: color sprites red, window green, background blue
+const (
+	DefaultScale   = 4
+	SkipBoot       = false
+	UseDebugColors = false
+)
 
 func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[ScreenWidth][ScreenHeight][3]uint8) {
 	for y := 0; y < ScreenHeight; y++ {
@@ -42,9 +49,12 @@ func CreateGameBoy() *Gameboy {
 	gb.cpu = &CpuRegisters{}
 	gb.memory = &Memory{}
 	gb.memory.Init()
-	gb.joypad = &Joypad{}
-	gb.memory.gameboy = &gb
-	// TODO: Does interrupt master enable default to True?
+
+	if SkipBoot {
+		gb.memory.BypassBootROM()
+		gb.cpu.BypassBootROM()
+	}
+
 	return &gb
 }
 
@@ -62,15 +72,6 @@ func run() {
 	// win.SetSmooth(true)
 
 	gb := CreateGameBoy()
-
-	// TODO: Allow for skipping boot ROM if we want
-	skipBoot := true
-
-	if skipBoot {
-		gb.memory.set(BOOT, 1)
-		gb.memory.BypassBootROM()
-		gb.cpu.BypassBootROM()
-	}
 	gb.LoadCartridge(parseCartridgeFile("roms/pokemon_red.gb"))
 
 	picture := &pixel.PictureData{
@@ -87,7 +88,7 @@ func run() {
 		case <-ticker.C:
 			gb.ReadKeyboard(win)
 			gb.RunNextFrame()
-			RenderScreen(win, picture, &gb.PreparedData)
+			RenderScreen(win, picture, &gb.screenData)
 		default:
 		}
 	}

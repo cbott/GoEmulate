@@ -15,9 +15,9 @@ C GB emulator
 https://github.com/AntonioND/giibiiadvance/blob/master/source/gb_core/cpu.c#L330
 
 GB docs:
+- https://izik1.github.io/gbops/index.html
 - http://bgb.bircd.org/pandocs.htm#cpuinstructionset
 - http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
-- https://pastraiser.com/cpu/gameboy/gameboy_opcodes.html
 - https://gbdev.io/pandocs/Specifications.html
 
 

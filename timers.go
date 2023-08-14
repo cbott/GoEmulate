@@ -46,7 +46,8 @@ func (gb *Gameboy) RunTimers(cycles int) {
 		// Timer is enabled
 		gb.timerAccumulator += cycles
 		clock := getClockSelect(tac_value)
-		// TODO: This may accumulate a small error when switching clock rates if timerAccumulator wasn't 0
+		// Note: This may accumulate a small error when switching clock rates if timerAccumulator wasn't 0
+		// likely irrelevant for most use cases
 		var incrementedTIMA int = int(gb.memory.get(TIMA)) + (gb.timerAccumulator / clock)
 		gb.timerAccumulator %= clock
 
