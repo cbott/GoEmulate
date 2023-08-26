@@ -98,6 +98,9 @@ func (gb *Gameboy) RunNextFrame() {
 		gb.RunGraphicsProcess(cyclesSinceLast)
 		gb.RunTimers(cyclesSinceLast)
 
+		// TODO: verify we're giving this the right number of cycles
+		gb.memory.apu.RunAudioProcess(cyclesSinceLast)
+
 		// Evaulate interrupt state after this round of graphics and timer updates
 		totalCycles += gb.RunInterrupts()
 	}

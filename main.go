@@ -44,7 +44,7 @@ func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[Scr
 	window.Update()
 }
 
-func CreateGameBoy() *Gameboy {
+func NewGameBoy() *Gameboy {
 	var gb = Gameboy{}
 	gb.cpu = &CpuRegisters{}
 	gb.memory = &Memory{}
@@ -71,7 +71,7 @@ func run() {
 	}
 	// win.SetSmooth(true)
 
-	gb := CreateGameBoy()
+	gb := NewGameBoy()
 	gb.LoadCartridge(parseCartridgeFile("roms/pokemon_red.gb"))
 
 	picture := &pixel.PictureData{
