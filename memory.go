@@ -16,6 +16,7 @@ const (
 type Memory struct {
 	memory    [0x10000]uint8
 	cartridge Cartridge
+	apu       *APU
 	bootrom   [0x100]uint8
 
 	// Internal counter to keep track of when the DIV register should increment
@@ -39,6 +40,9 @@ func (m *Memory) set(address uint16, value uint8) {
 	} else if address < CartridgeEndAddress ||
 		address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
 		m.cartridge.WriteTo(address, value)
+	} else if address >= NR10 && address < WaveRAMStart+WaveRAMSize {
+		// Sound controls
+		m.apu.WriteTo(address, value)
 	} else {
 		m.memory[address] = value
 	}
@@ -88,6 +92,9 @@ func (m *Memory) get(address uint16) uint8 {
 
 func (m *Memory) Init() {
 	m.bootrom = BootRom
+	// TODO: Implementing the APU like this feels hacky
+	m.apu = &APU{}
+	m.apu.Init()
 }
 
 // Perform a DMA transfer into OAM RAM from the specified source address (divided by 0x100)
