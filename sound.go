@@ -212,6 +212,11 @@ func (apu *APU) RunAudioProcess(cycles int) {
 
 // Write to an Audio control register
 func (apu *APU) WriteTo(address uint16, value uint8) {
+	if !apu.on && address != NR52 {
+		// Register access is disabled when APU is turned off
+		return
+	}
+
 	switch address {
 	case NR10:
 		// Channel 1 sweep
@@ -352,13 +357,141 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 		apu.nr51RegisterValue = value
 	case NR52:
 		// Sound on/off
+		// All other bits of thsi register are read only
 		apu.on = (value & NR52_apu_enable) != 0
-		apu.channel1.on = (value & NR52_ch1_on) != 0
-		apu.channel2.on = (value & NR52_ch2_on) != 0
-		apu.channel3.on = (value & NR52_ch3_on) != 0
-		// apu.channel4.on = (value & NR52_ch4_on) != 0
+		// TODO: when turning off APU we should also reset all registers back to default
 	default:
 		// Writing to invalid address
 		return
+	}
+}
+
+// Read from an Audio control register
+func (apu *APU) ReadFrom(address uint16) uint8 {
+	if !apu.on && address != NR52 {
+		// Register access is disabled when APU is turned off
+		return 0x00
+	}
+
+	switch address {
+	case NR10:
+		// Channel 1 sweep
+		// TODO
+		// should we store this value in the sound channel?
+		// if we're going to parse it the same way for all 4 channels then we could just have a
+		// set method which does it, and stores it for later too, that would be ideal
+		return 0xFF
+	case NR11:
+		// Channel 1 length timer and duty cycle
+		// only bits 6-7 are readable
+		return apu.channel1.duty << 6
+	case NR12:
+		// Channel 1 volume and envelope
+		// TODO
+		return 0xFF
+	case NR13:
+		// Channel 1 period low
+		// Write only
+		return 0x00
+	case NR14:
+		// Channel 1 period high and control
+		// Only bit 6 is readable
+		if apu.channel1.soundLengthEnable {
+			return 1 << 6
+		}
+		return 0
+	case NR21:
+		// Channel 2 length timer and duty cycle
+		// only bits 6-7 are readable
+		return apu.channel2.duty << 6
+	case NR22:
+		// Channel 2 volume and envelope
+		// TODO
+		return 0xFF
+	case NR23:
+		// Channel 2 period low
+		// Write only
+		return 0x00
+	case NR24:
+		// Channel 2 period high and control
+		// Only bit 6 is readable
+		if apu.channel2.soundLengthEnable {
+			return 1 << 6
+		}
+		return 0
+	case NR30:
+		// Channel 3 DAC Enable
+		if apu.channel3.on {
+			return 1 << 7
+		}
+		return 0
+	case NR31:
+		// Channel 3 length timer
+		// Write only
+		return 0x00
+	case NR32:
+		// Channel 3 output level
+		return apu.channel3.outputLevel << 5
+	case NR33:
+		// Channel 3 period low
+		// Write only
+		return 0x00
+	case NR34:
+		// Channel 3 period high and control
+		// Only bit 6 is readable
+		if apu.channel3.soundLengthEnable {
+			return 1 << 6
+		}
+		return 0
+	case NR41:
+		// Channel 4 length timer
+		// Write only
+		return 0x00
+	case NR42:
+		// Channel 4 volume and envelope
+		// TODO
+		return 0xFF
+	case NR43:
+		// Channel 4 frequency and randomness
+		// TODO
+		return 0xFF
+	case NR44:
+		// Channel 4 control
+		// Only bit 6 is readable
+		if apu.channel4.soundLengthEnable {
+			return 1 << 6
+		}
+		return 0
+	case NR50:
+		// Master volume and VIN panning
+		// Note: ignoring bits 3 and 7 which control VIN (audio provided by cartridge)
+		return (apu.leftVolume << 4) | apu.rightVolume
+	case NR51:
+		// Sound panning
+		return apu.nr51RegisterValue
+	case NR52:
+		// Sound on/off
+		var value uint8
+		if apu.on {
+			value |= NR52_apu_enable
+
+			if apu.channel1.on {
+				value |= NR52_ch1_on
+			}
+			if apu.channel2.on {
+				value |= NR52_ch2_on
+			}
+			if apu.channel3.on {
+				value |= NR52_ch3_on
+			}
+			if apu.channel4.on {
+				value |= NR52_ch4_on
+			}
+		}
+
+		return value
+	default:
+		// Reading garbage - we will return 0
+		return 0x00
 	}
 }
