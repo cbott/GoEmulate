@@ -83,6 +83,11 @@ func (m *Memory) get(address uint16) uint8 {
 		return m.GetP1Value()
 	}
 
+	// Sound register access
+	if address >= NR10 && address < WaveRAMStart {
+		return m.apu.ReadFrom(address)
+	}
+
 	// In most cases we just read a raw value
 	return m.memory[address]
 
@@ -93,8 +98,7 @@ func (m *Memory) get(address uint16) uint8 {
 func (m *Memory) Init() {
 	m.bootrom = BootRom
 	// TODO: Implementing the APU like this feels hacky
-	m.apu = &APU{}
-	m.apu.Init()
+	m.apu = NewAPU()
 	// TODO: this is kind of a funky way to do things?
 	m.apu.channel3.waveRAM = m.memory[WaveRAMStart:]
 }
@@ -113,31 +117,13 @@ func (m *Memory) performDMATransfer(source uint8) {
 // Set memory to the state it would be in after boot ROM runs
 // if skipping normal bootrom execution we can run this instead
 func (m *Memory) BypassBootROM() {
+	m.apu.BypassBootROM()
 	m.memory[BOOT] = 1
 	m.memory[DIV] = 0x1E // Does not currently match my timer implementation
 	m.memory[IF] = 0xE1
 	m.memory[TIMA] = 0x00
 	m.memory[TMA] = 0x00
 	m.memory[TAC] = 0x00
-	m.memory[NR10] = 0x80
-	m.memory[NR11] = 0xBF
-	m.memory[NR12] = 0xF3
-	m.memory[NR14] = 0xBF
-	m.memory[NR21] = 0x3F
-	m.memory[NR22] = 0x00
-	m.memory[NR24] = 0xBF
-	m.memory[NR30] = 0x7F
-	m.memory[NR31] = 0xFF
-	m.memory[NR32] = 0x9F
-	m.memory[NR33] = 0xFF
-	m.memory[NR34] = 0xBF
-	m.memory[NR41] = 0xFF
-	m.memory[NR42] = 0x00
-	m.memory[NR43] = 0x00
-	m.memory[NR44] = 0xBF
-	m.memory[NR50] = 0x77
-	m.memory[NR51] = 0xF3
-	m.memory[NR52] = 0xF1
 	m.memory[LCDC] = 0x91
 	m.memory[SCY] = 0x00
 	m.memory[SCX] = 0x00

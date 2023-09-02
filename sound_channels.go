@@ -21,30 +21,20 @@ var WaveDuty = map[uint8]float64{
 	0b11: 2 / 8.0, // ______--______--
 }
 
+// Any one of the 4 Game Boy sound channels
 type SoundChannel struct {
+	// TODO: could use some cleanup
 	// Sets whether this channel is pulse (channels 1 or 2), wave (channel 3), or noise (channel 4)
 	channelNumber int
 
 	// Whether or not the sound channel is enabled
 	on bool
 
-	// Currently selected wave duty cycle (0-3) Channel 1 only
+	// Channel 1 only
+	// Currently selected wave duty cycle (0-3)
 	duty uint8
-
-	// 11-bit value which corresponds to frequency
-	frequencyValue uint16
-
-	// Fractional number of waves we have generated up to this point
-	waveCounter float64
-
-	// If sound length is enabled, initial sound length defines start point for increasing sound counter
-	// Ch 1, 2, 4: 0-63, 0 = long sound, 63 = short sound
-	// Ch 3: 0-255, 0 = long sound, 255 = short sound
-	initialSoundLength uint8
-	soundLengthEnable  bool
-	// Time since starting this sound (s)
-	lengthCounter float64
-
+	// Channel 1 sweep control register
+	nr10RegisterValue uint8
 	// Time between frequency changes in 128Hz ticks
 	// 0-7, 0=no update 1=fast change 7=slow change
 	sweepTime uint8
@@ -54,6 +44,23 @@ type SoundChannel struct {
 	sweepSlope uint8
 	// 0: increasing, 1: decreasing
 	sweepDirection uint8
+
+	// 11-bit value which corresponds to frequency
+	frequencyValue uint16
+
+	// Fractional number of waves we have generated up to this point
+	waveCounter float64
+
+	// Volume and Envelope control register (Channels 1, 2, 4 only)
+	nrX2RegisterValue uint8
+
+	// If sound length is enabled, initial sound length defines start point for increasing sound counter
+	// Ch 1, 2, 4: 0-63, 0 = long sound, 63 = short sound
+	// Ch 3: 0-255, 0 = long sound, 255 = short sound
+	initialSoundLength uint8
+	soundLengthEnable  bool
+	// Time since starting this sound (s)
+	lengthCounter float64
 
 	// 4 bit 0-F, 0=sound off F=full volume
 	initialVolumeEnvelope uint8
@@ -123,6 +130,9 @@ func (c *SoundChannel) noiseGenerator() uint8 {
 
 // Trigger the sound channel
 func (c *SoundChannel) Trigger() {
+	c.applyNR10()
+	c.applyNRx2()
+
 	c.on = true
 	c.lengthCounter = float64(c.initialSoundLength) * LengthTickTime
 	c.currentVolume = c.initialVolumeEnvelope
@@ -145,6 +155,26 @@ func (c *SoundChannel) updateShiftRegister() {
 
 	// Shift the register
 	c.shiftRegister >>= 1
+}
+
+// Parse the value in NR10 to assign channel sweep control values
+func (c *SoundChannel) applyNR10() {
+	// Sweep Time: bits 4-6
+	c.sweepTime = (c.nr10RegisterValue >> 4) & 0b111
+	// Sweep Direction: bit 3
+	c.sweepDirection = (c.nr10RegisterValue >> 3) & 0b1
+	// Sweep Slope: bits 0-2
+	c.sweepSlope = c.nr10RegisterValue & 0b111
+}
+
+// Parse the value in NR12/22/42 to assign channel volume envelope values
+func (c *SoundChannel) applyNRx2() {
+	// Initial volume of envelope: bits 4-7
+	c.initialVolumeEnvelope = (c.nrX2RegisterValue >> 4) & 0b1111
+	// Envelope Direction: bit 3
+	c.volumeEnvelopeDirection = (c.nrX2RegisterValue >> 3) & 1
+	// Volume Sweep Pace: bits 0-2
+	c.volumeSweepPace = c.nrX2RegisterValue & 0b111
 }
 
 // Sample the audio channel at the global audio sample rate
