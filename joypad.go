@@ -28,8 +28,8 @@ const (
 	BUTTON_RIGHT  = pixelgl.KeyRight
 	BUTTON_START  = pixelgl.KeyEnter
 	BUTTON_SELECT = pixelgl.KeyS
-	BUTTON_B      = pixelgl.KeyB
-	BUTTON_A      = pixelgl.KeyA
+	BUTTON_B      = pixelgl.KeyZ
+	BUTTON_A      = pixelgl.KeyX
 )
 
 // Update the Joypad button states with what is currently pressed on the keyboard
