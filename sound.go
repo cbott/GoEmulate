@@ -82,6 +82,8 @@ type APU struct {
 
 	channel1 *SoundChannel
 	channel2 *SoundChannel
+	channel3 *SoundChannel
+	channel4 *SoundChannel
 
 	player      *oto.Player
 	audioBuffer chan [2]uint8
@@ -113,8 +115,10 @@ func (apu *APU) Init() {
 	apu.audioBuffer = make(chan [2]uint8, 5000)
 
 	// Initialize our sound channels
-	apu.channel1 = &SoundChannel{}
-	apu.channel2 = &SoundChannel{}
+	apu.channel1 = &SoundChannel{channelNumber: 1}
+	apu.channel2 = &SoundChannel{channelNumber: 2}
+	apu.channel3 = &SoundChannel{channelNumber: 3}
+	apu.channel4 = &SoundChannel{channelNumber: 4}
 
 	// Start the go function which will continually pull samples from the audio buffer and play them
 	frameTime := time.Second / time.Duration(bufferSeconds)
@@ -159,6 +163,8 @@ func (apu *APU) RunAudioProcess(cycles int) {
 	// Sample each channel
 	sample1 := float64(apu.channel1.GetSample())
 	sample2 := float64(apu.channel2.GetSample())
+	sample3 := float64(apu.channel3.GetSample())
+	sample4 := float64(apu.channel4.GetSample())
 
 	// Mix into left and right audio outputs
 	var leftUnscaled, rightUnscaled float64
@@ -174,10 +180,28 @@ func (apu *APU) RunAudioProcess(cycles int) {
 	if (apu.nr51RegisterValue & NR51_mix_ch2_right) != 0 {
 		rightUnscaled += sample2
 	}
+	if (apu.nr51RegisterValue & NR51_mix_ch3_left) != 0 {
+		leftUnscaled += sample3
+	}
+	if (apu.nr51RegisterValue & NR51_mix_ch3_right) != 0 {
+		rightUnscaled += sample3
+	}
+	if (apu.nr51RegisterValue & NR51_mix_ch4_left) != 0 {
+		leftUnscaled += sample4
+	}
+	if (apu.nr51RegisterValue & NR51_mix_ch4_right) != 0 {
+		if (apu.nr51RegisterValue & NR51_mix_ch3_left) != 0 {
+			leftUnscaled += sample3
+		}
+		if (apu.nr51RegisterValue & NR51_mix_ch3_right) != 0 {
+			rightUnscaled += sample3
+		}
+		rightUnscaled += sample4
+	}
 
 	// Normalize
-	leftUnscaled /= 2
-	rightUnscaled /= 2
+	leftUnscaled /= 4
+	rightUnscaled /= 4
 
 	// Apply the master volume scaling
 	var left uint8 = uint8(leftUnscaled * float64(apu.leftVolume+1) / 8.0)
@@ -188,11 +212,6 @@ func (apu *APU) RunAudioProcess(cycles int) {
 
 // Write to an Audio control register
 func (apu *APU) WriteTo(address uint16, value uint8) {
-	if address >= WaveRAMStart {
-		// TODO: populate Wave RAM
-		return
-	}
-
 	switch address {
 	case NR10:
 		// Channel 1 sweep
@@ -270,23 +289,57 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 			apu.channel2.Trigger()
 		}
 	case NR30:
-
+		apu.channel3.on = value&(1<<7) != 0
 	case NR31:
-
+		apu.channel3.initialSoundLength = value
 	case NR32:
-
+		// Bits 5-6
+		apu.channel3.outputLevel = (value >> 5) & 0b11
 	case NR33:
-
+		// Channel 3 period low
+		// TODO: unsure when to actually update this
+		// Low 8 bits of frequency value
+		apu.channel3.frequencyValue = (apu.channel3.frequencyValue & 0x0700) | uint16(value)
 	case NR34:
-
+		// Channel 3 period high and control
+		// High 3 bits of frequency value: bits 0-2
+		apu.channel3.frequencyValue = (apu.channel3.frequencyValue & 0x00FF) | (uint16(value&0x7) << 8)
+		// Sound Length Enable: bit 6
+		// Takes effect immediately
+		apu.channel3.soundLengthEnable = (value & (1 << 6)) != 0
+		// Sound Trigger: bit 7
+		if value&(1<<7) != 0 {
+			apu.channel3.Trigger()
+		}
 	case NR41:
-
+		// Channel 4 length timer
+		// Initial sound length: bits 0-5
+		apu.channel2.initialSoundLength = value & 0b00111111
 	case NR42:
-
+		// Channel 4 volume and envelope
+		// Initial volume of envelope: bits 4-7
+		apu.channel4.initialVolumeEnvelope = (value & 0b11110000) >> 4
+		// Envelope Direction: bit 3
+		apu.channel4.volumeEnvelopeDirection = (value & 0b00001000) >> 3
+		// Volume Sweep Pace: bits 0-2
+		apu.channel4.volumeSweepPace = value & 0b00000111
 	case NR43:
-
+		// Channel 4 frequency and randomness
+		// Clock Shift: bits 4-7
+		apu.channel4.shiftRegisterClockShift = (value >> 4) & 0xF
+		// LFSR Width: bit 3
+		apu.channel4.shiftRegisterWidth = (value >> 3) & 1
+		// Clock Divider: bits 0-2
+		apu.channel4.shiftRegisterClockRatio = value & 0b111
 	case NR44:
-
+		// Channel 4 control
+		// Sound Length Enable: bit 6
+		// Takes effect immediately
+		apu.channel4.soundLengthEnable = (value & (1 << 6)) != 0
+		// Sound Trigger: bit 7
+		if value&(1<<7) != 0 {
+			apu.channel4.Trigger()
+		}
 	case NR50:
 		// Master volume and VIN panning
 		// Note: ignoring bits 3 and 7 which control VIN (audio provided by cartridge)
@@ -301,8 +354,8 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 		// Sound on/off
 		apu.on = (value & NR52_apu_enable) != 0
 		apu.channel1.on = (value & NR52_ch1_on) != 0
-		// apu.channel2.on = (value & NR52_ch2_on) != 0
-		// apu.channel3.on = (value & NR52_ch3_on) != 0
+		apu.channel2.on = (value & NR52_ch2_on) != 0
+		apu.channel3.on = (value & NR52_ch3_on) != 0
 		// apu.channel4.on = (value & NR52_ch4_on) != 0
 	default:
 		// Writing to invalid address

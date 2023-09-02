@@ -40,7 +40,7 @@ func (m *Memory) set(address uint16, value uint8) {
 	} else if address < CartridgeEndAddress ||
 		address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
 		m.cartridge.WriteTo(address, value)
-	} else if address >= NR10 && address < WaveRAMStart+WaveRAMSize {
+	} else if address >= NR10 && address < WaveRAMStart {
 		// Sound controls
 		m.apu.WriteTo(address, value)
 	} else {
@@ -95,6 +95,8 @@ func (m *Memory) Init() {
 	// TODO: Implementing the APU like this feels hacky
 	m.apu = &APU{}
 	m.apu.Init()
+	// TODO: this is kind of a funky way to do things?
+	m.apu.channel3.waveRAM = m.memory[WaveRAMStart:]
 }
 
 // Perform a DMA transfer into OAM RAM from the specified source address (divided by 0x100)

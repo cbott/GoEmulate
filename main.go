@@ -72,7 +72,7 @@ func run() {
 	// win.SetSmooth(true)
 
 	gb := NewGameBoy()
-	gb.LoadCartridge(parseCartridgeFile("roms/pokemon_red.gb"))
+	gb.LoadCartridge(parseCartridgeFile("roms/tetris.gb"))
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),
