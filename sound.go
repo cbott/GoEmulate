@@ -54,7 +54,6 @@ const (
 	NR51_mix_ch4_left  = 1 << 7
 )
 
-// TODO: do we want to break out all the constants like this? Or just deal with it in the read/write section
 const (
 	NR52            = 0xFF26 // Sound on/off
 	NR52_apu_enable = 1 << 7 // 0 = all sound off
@@ -96,8 +95,8 @@ type APU struct {
 	rightVolume uint8
 }
 
-func (apu *APU) Init() {
-	// TODO: change to being MakeAPU()?
+func NewAPU() *APU {
+	apu := &APU{}
 	apu.on = true
 
 	// Context Settings
@@ -145,6 +144,34 @@ func (apu *APU) Init() {
 			}
 		}
 	}()
+
+	return apu
+}
+
+// Set APU to the state it would be in after boot ROM runs
+// if skipping normal bootrom execution we can run this instead
+func (apu *APU) BypassBootROM() {
+	apu.on = true
+	// TODO: implement correctly
+	// memory[NR10] = 0x80
+	// memory[NR11] = 0xBF
+	// memory[NR12] = 0xF3
+	// memory[NR14] = 0xBF
+	// memory[NR21] = 0x3F
+	// memory[NR22] = 0x00
+	// memory[NR24] = 0xBF
+	// memory[NR30] = 0x7F
+	// memory[NR31] = 0xFF
+	// memory[NR32] = 0x9F
+	// memory[NR33] = 0xFF
+	// memory[NR34] = 0xBF
+	// memory[NR41] = 0xFF
+	// memory[NR42] = 0x00
+	// memory[NR43] = 0x00
+	// memory[NR44] = 0xBF
+	// memory[NR50] = 0x77
+	// memory[NR51] = 0xF3
+	// memory[NR52] = 0xF1
 }
 
 // Advance audio processing unit by the specified number of machine cycles (4MHz)
@@ -220,34 +247,24 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 	switch address {
 	case NR10:
 		// Channel 1 sweep
-		// TODO: Values should not take effect until triggered
-		// Sweep Time: bits 4-6
-		apu.channel1.sweepTime = (value & 0b01110000) >> 4
-		// Sweep Direction: bit 3
-		apu.channel1.sweepDirection = (value & 0b00001000) >> 3
-		// Sweep Slope: bits 0-2
-		apu.channel1.sweepSlope = value & 0b00000111
+		// Values take effect next time the channel is triggered
+		apu.channel1.nr10RegisterValue = value
 	case NR11:
 		// Channel 1 length timer and duty cycle
 		// Duty Cycle: bits 6-7
 		apu.channel1.duty = (value & 0b11000000) >> 6
 		// Initial sound length: bits 0-5
 		// TODO: does this need to change the wave length timer immediately?
+		// would do ~ c.lengthCounter = float64(c.initialSoundLength) * LengthTickTime
 		apu.channel1.initialSoundLength = value & 0b00111111
 	case NR12:
 		// Channel 1 volume and envelope
-		// TODO: these changes should only take effect when re-triggering the sound
-		// Initial volume of envelope: bits 4-7
-		apu.channel1.initialVolumeEnvelope = (value & 0b11110000) >> 4
-		// Envelope Direction: bit 3
-		apu.channel1.volumeEnvelopeDirection = (value & 0b00001000) >> 3
-		// Volume Sweep Pace: bits 0-2
-		apu.channel1.volumeSweepPace = value & 0b00000111
+		apu.channel1.nrX2RegisterValue = value
 	case NR13:
 		// Channel 1 period low
-		// TODO: unsure when to actually update this
 		// Low 8 bits of frequency value
 		apu.channel1.frequencyValue = (apu.channel1.frequencyValue & 0x0700) | uint16(value)
+		// TODO: Verify that it is correct behavior to have this apply immediately
 	case NR14:
 		// Channel 1 period high and control
 		// High 3 bits of frequency value: bits 0-2
@@ -259,27 +276,17 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 		if value&(1<<7) != 0 {
 			apu.channel1.Trigger()
 		}
-	// TODO: reduce duplication across channels
-	// likely need to make these methods of SoundChannel unless they access base APU values?
 	case NR21:
 		// Channel 2 length timer and duty cycle
 		// Duty Cycle: bits 6-7
 		apu.channel2.duty = (value & 0b11000000) >> 6
 		// Initial sound length: bits 0-5
-		// TODO: does this need to change the wave length timer immediately?
 		apu.channel2.initialSoundLength = value & 0b00111111
 	case NR22:
 		// Channel 2 volume and envelope
-		// TODO: these changes should only take effect when re-triggering the sound
-		// Initial volume of envelope: bits 4-7
-		apu.channel2.initialVolumeEnvelope = (value & 0b11110000) >> 4
-		// Envelope Direction: bit 3
-		apu.channel2.volumeEnvelopeDirection = (value & 0b00001000) >> 3
-		// Volume Sweep Pace: bits 0-2
-		apu.channel2.volumeSweepPace = value & 0b00000111
+		apu.channel2.nrX2RegisterValue = value
 	case NR23:
 		// Channel 2 period low
-		// TODO: unsure when to actually update this
 		// Low 8 bits of frequency value
 		apu.channel2.frequencyValue = (apu.channel2.frequencyValue & 0x0700) | uint16(value)
 	case NR24:
@@ -302,7 +309,6 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 		apu.channel3.outputLevel = (value >> 5) & 0b11
 	case NR33:
 		// Channel 3 period low
-		// TODO: unsure when to actually update this
 		// Low 8 bits of frequency value
 		apu.channel3.frequencyValue = (apu.channel3.frequencyValue & 0x0700) | uint16(value)
 	case NR34:
@@ -322,12 +328,7 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 		apu.channel2.initialSoundLength = value & 0b00111111
 	case NR42:
 		// Channel 4 volume and envelope
-		// Initial volume of envelope: bits 4-7
-		apu.channel4.initialVolumeEnvelope = (value & 0b11110000) >> 4
-		// Envelope Direction: bit 3
-		apu.channel4.volumeEnvelopeDirection = (value & 0b00001000) >> 3
-		// Volume Sweep Pace: bits 0-2
-		apu.channel4.volumeSweepPace = value & 0b00000111
+		apu.channel4.nrX2RegisterValue = value
 	case NR43:
 		// Channel 4 frequency and randomness
 		// Clock Shift: bits 4-7
@@ -357,7 +358,7 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 		apu.nr51RegisterValue = value
 	case NR52:
 		// Sound on/off
-		// All other bits of thsi register are read only
+		// All other bits of this register are read only
 		apu.on = (value & NR52_apu_enable) != 0
 		// TODO: when turning off APU we should also reset all registers back to default
 	default:
@@ -376,19 +377,14 @@ func (apu *APU) ReadFrom(address uint16) uint8 {
 	switch address {
 	case NR10:
 		// Channel 1 sweep
-		// TODO
-		// should we store this value in the sound channel?
-		// if we're going to parse it the same way for all 4 channels then we could just have a
-		// set method which does it, and stores it for later too, that would be ideal
-		return 0xFF
+		return apu.channel1.nr10RegisterValue
 	case NR11:
 		// Channel 1 length timer and duty cycle
 		// only bits 6-7 are readable
 		return apu.channel1.duty << 6
 	case NR12:
 		// Channel 1 volume and envelope
-		// TODO
-		return 0xFF
+		return apu.channel1.nrX2RegisterValue
 	case NR13:
 		// Channel 1 period low
 		// Write only
@@ -406,8 +402,7 @@ func (apu *APU) ReadFrom(address uint16) uint8 {
 		return apu.channel2.duty << 6
 	case NR22:
 		// Channel 2 volume and envelope
-		// TODO
-		return 0xFF
+		return apu.channel2.nrX2RegisterValue
 	case NR23:
 		// Channel 2 period low
 		// Write only
@@ -449,12 +444,16 @@ func (apu *APU) ReadFrom(address uint16) uint8 {
 		return 0x00
 	case NR42:
 		// Channel 4 volume and envelope
-		// TODO
-		return 0xFF
+		return apu.channel4.nrX2RegisterValue
 	case NR43:
 		// Channel 4 frequency and randomness
-		// TODO
-		return 0xFF
+		// Clock Shift: bits 4-7
+		var value uint8 = apu.channel4.shiftRegisterClockShift << 4
+		// LFSR Width: bit 3
+		value |= apu.channel4.shiftRegisterWidth << 3
+		// Clock Divider: bits 0-2
+		value |= apu.channel4.shiftRegisterClockRatio
+		return value
 	case NR44:
 		// Channel 4 control
 		// Only bit 6 is readable
