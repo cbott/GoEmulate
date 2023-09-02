@@ -5,9 +5,12 @@ import (
 )
 
 const (
-	LengthTickTime = 1 / 256.0 // Seconds
-	SweepTickTime  = 1 / 128.0 // Seconds
-	VolumeTickTime = 1 / 64.0  // Seconds
+	// Period of one tick for a sound channel length timer
+	LengthTickTime = 1 / 256.0
+	// Period of one tick for a sound channel frequency sweep
+	SweepTickTime = 1 / 128.0
+	// Period of one tick for a sound channel volume envelope
+	VolumeTickTime = 1 / 64.0
 )
 
 // WaveDuty defines the fraction of the wave which is high vs low
@@ -25,10 +28,10 @@ type SoundChannel struct {
 	// Whether or not the sound channel is enabled
 	on bool
 
-	// Currently selected wave duty cycle (0-3)
+	// Currently selected wave duty cycle (0-3) Channel 1 only
 	duty uint8
 
-	// 11-bit value which corresponds to frequency as 131072/(2048-x) Hz
+	// 11-bit value which corresponds to frequency
 	frequencyValue uint16
 
 	// Fractional number of waves we have generated up to this point
@@ -118,6 +121,7 @@ func (c *SoundChannel) noiseGenerator() uint8 {
 	}
 }
 
+// Trigger the sound channel
 func (c *SoundChannel) Trigger() {
 	c.on = true
 	c.lengthCounter = float64(c.initialSoundLength) * LengthTickTime
@@ -127,6 +131,7 @@ func (c *SoundChannel) Trigger() {
 	c.sweepTimeCounter = 0
 }
 
+// Channel 4 only, apply 1 shift and feeback step to the noise LFSR
 func (c *SoundChannel) updateShiftRegister() {
 	// xnor bit 0 with bit 1
 	value := ^(c.shiftRegister ^ (c.shiftRegister >> 1)) & 1
