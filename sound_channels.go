@@ -19,6 +19,9 @@ var WaveDuty = map[uint8]float64{
 }
 
 type SoundChannel struct {
+	// Sets whether this channel is pulse (channels 1 or 2), wave (channel 3), or noise (channel 4)
+	channelNumber int
+
 	// Whether or not the sound channel is enabled
 	on bool
 
@@ -31,6 +34,14 @@ type SoundChannel struct {
 	// Fractional number of waves we have generated up to this point
 	waveCounter float64
 
+	// If sound length is enabled, initial sound length defines start point for increasing sound counter
+	// Ch 1, 2, 4: 0-63, 0 = long sound, 63 = short sound
+	// Ch 3: 0-255, 0 = long sound, 255 = short sound
+	initialSoundLength uint8
+	soundLengthEnable  bool
+	// Time since starting this sound (s)
+	lengthCounter float64
+
 	// Time between frequency changes in 128Hz ticks
 	// 0-7, 0=no update 1=fast change 7=slow change
 	sweepTime uint8
@@ -41,13 +52,6 @@ type SoundChannel struct {
 	// 0: increasing, 1: decreasing
 	sweepDirection uint8
 
-	// If sound length is enabled, initial sound length defines start point for increasing sound counter
-	// 0-63, 0 = long sound, 63 = short sound
-	initialSoundLength uint8
-	soundLengthEnable  bool
-	// Time since starting this sound (s)
-	lengthCounter float64
-
 	// 4 bit 0-F, 0=sound off F=full volume
 	initialVolumeEnvelope uint8
 	// 1 bit, 0=decreasing 1=increasing
@@ -56,9 +60,27 @@ type SoundChannel struct {
 	volumeSweepPace       uint8
 	currentVolume         uint8
 	volumeEnvelopeCounter float64
+
+	// Selects volume scaling (channel 3 only)
+	// 2 bit: 0 = mute, 1 = 100%, 2 = 50%, 3 = 25%
+	outputLevel uint8
+	// Used for channel 3 only
+	waveRAM []uint8
+
+	// Channel 4 only
+	// LFSR for noise generation
+	shiftRegister uint16
+	// 0 = 15 bits, 1 = 7 bits
+	shiftRegisterWidth uint8
+	// 4 bit clock shift (s)
+	shiftRegisterClockShift uint8
+	// 3 bit clock divider (r)
+	shiftRegisterClockRatio uint8
+	// Noise frequency is f = 262144 / (max(r, 0.5) * 2**s)
 }
 
-func (c *SoundChannel) generator(t float64) byte {
+// Get the next sample for a pulse channel
+func (c *SoundChannel) pulseGenerator(t float64) uint8 {
 	// Where t is the wave we are on (2.5 = half way through the 3rd wave)
 	_, frac := math.Modf(t)
 	if WaveDuty[c.duty] < frac {
@@ -67,12 +89,57 @@ func (c *SoundChannel) generator(t float64) byte {
 	return 0
 }
 
+// Get the next sample for a wave output channel
+func (c *SoundChannel) waveGenerator(t float64) uint8 {
+	// Where t is the wave we are on (2.5 = half way through the 3rd wave)
+	_, frac := math.Modf(t)
+	sampleIndex := int(frac * WaveRAMSize)
+	waveByte := c.waveRAM[sampleIndex]
+
+	// Each sample is 4 bits each, we read through Wave RAM high nybble first
+	var value uint8
+	if int(frac*WaveRAMSize*2)%2 == 0 {
+		// In the first half of this byte
+		value = waveByte & 0xF0
+	} else {
+		// In the second half of this byte
+		value = waveByte << 4
+	}
+
+	return value
+}
+
+// Get the next sample for the noise channel
+func (c *SoundChannel) noiseGenerator() uint8 {
+	if (c.shiftRegister & 1) == 0 {
+		return 0
+	} else {
+		return 0xFF
+	}
+}
+
 func (c *SoundChannel) Trigger() {
 	c.on = true
 	c.lengthCounter = float64(c.initialSoundLength) * LengthTickTime
 	c.currentVolume = c.initialVolumeEnvelope
 	c.volumeEnvelopeCounter = 0
+	c.shiftRegister = 0
 	c.sweepTimeCounter = 0
+}
+
+func (c *SoundChannel) updateShiftRegister() {
+	// xnor bit 0 with bit 1
+	value := ^(c.shiftRegister ^ (c.shiftRegister >> 1)) & 1
+
+	// Set bit 15
+	c.shiftRegister = (c.shiftRegister & 0x7FFF) | (value << 15)
+	if c.shiftRegisterWidth == 1 {
+		// Set bit 7
+		c.shiftRegister = (c.shiftRegister & 0xFF7F) | (value << 7)
+	}
+
+	// Shift the register
+	c.shiftRegister >>= 1
 }
 
 // Sample the audio channel at the global audio sample rate
@@ -83,15 +150,45 @@ func (c *SoundChannel) GetSample() uint8 {
 
 	// Get sample
 	var output uint8
-	// Each wave is 8 "samples" long and channels are clocked at 1048576 Hz -> 1048576 / 8 = 131072
-	// frequencyValue rolls over each time it reaches 2048, triggering 1 "sample"
-	chanFrequency := 131072.0 / (2048.0 - float64(c.frequencyValue))
+
+	// Channel 1 and 2: Each wave is 8 "samples" long and channels are clocked at 1048576 Hz -> 1048576 / 8 = 131072
+	// Channel 3: Each wave is 32 "samples" long and channels are clocked at 2097152 Hz -> 2097152 / 32 = 65536
+	// TODO: these are just powers of two off, same with noise frequency, should make use of that to simplify
+	var chanFrequency float64
+	if c.channelNumber == 1 || c.channelNumber == 2 {
+		// frequencyValue rolls over each time it reaches 2048, triggering 1 "sample"
+		chanFrequency = 131072.0 / (2048.0 - float64(c.frequencyValue))
+	} else if c.channelNumber == 3 {
+		chanFrequency = 65536.0 / (2048.0 - float64(c.frequencyValue))
+	} else if c.channelNumber == 4 {
+		var s int = 1 << c.shiftRegisterClockShift
+		chanFrequency = 262144.0 / (math.Max(float64(c.shiftRegisterClockRatio), 0.5) * float64(s))
+	}
 	// Step is how far through 1 wave we got with this sample
 	// If frequency is lower, step will be lower, so we step through a wave more slowly
 	step := chanFrequency / float64(AudioSampleRate)
 	c.waveCounter += step
+
 	// Take the sample value from the generator at the current point along our wave
-	output = uint8(float64(c.generator(c.waveCounter)) * float64(c.currentVolume) / 0xF)
+	if c.channelNumber == 1 || c.channelNumber == 2 {
+		output = uint8(float64(c.pulseGenerator(c.waveCounter)) * float64(c.currentVolume) / 0xF)
+	} else if c.channelNumber == 3 {
+		if c.outputLevel != 0 {
+			// Scale output volume based on selected output level
+			output = c.waveGenerator(c.waveCounter) >> (c.outputLevel - 1)
+		}
+	} else if c.channelNumber == 4 {
+		ipart := int(c.waveCounter)
+
+		for i := 0; i < ipart; i++ {
+			c.updateShiftRegister()
+		}
+		// Take the sample value from the generator at the current point along our wave
+		output = uint8(float64(c.noiseGenerator()) * float64(c.currentVolume) / 0xF)
+
+		// Remove the whole number of waves completed, since we've already run the shift register for them
+		c.waveCounter -= float64(ipart)
+	}
 
 	// Update the frequency sweep
 	if c.sweepTime > 0 {
@@ -138,7 +235,13 @@ func (c *SoundChannel) GetSample() uint8 {
 
 	// Update the sound play length
 	c.lengthCounter += 1.0 / AudioSampleRate
-	if c.soundLengthEnable && (c.lengthCounter/LengthTickTime) >= 64 {
+	var lengthMax float64
+	if c.channelNumber == 1 || c.channelNumber == 2 {
+		lengthMax = 64
+	} else if c.channelNumber == 3 {
+		lengthMax = 256
+	}
+	if c.soundLengthEnable && (c.lengthCounter/LengthTickTime) >= lengthMax {
 		// If sound length is enabled and
 		c.on = false
 	}
