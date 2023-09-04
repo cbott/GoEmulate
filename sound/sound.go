@@ -1,4 +1,4 @@
-package main
+package sound
 
 import (
 	"log"
@@ -68,7 +68,7 @@ const (
 	// Actual sample rate for sound played out of your speakers
 	AudioSampleRate = 44100
 	bufferSeconds   = 120
-	CyclesPerSample = CpuSpeed / float64(AudioSampleRate)
+	CyclesPerSample = 4194304 / float64(AudioSampleRate)
 )
 
 // Audio Processing Unit
@@ -95,10 +95,8 @@ type APU struct {
 	rightVolume uint8
 }
 
-func NewAPU() *APU {
+func NewAPU(waveRAM []uint8) *APU {
 	apu := &APU{}
-	apu.on = true
-
 	// Context Settings
 	// 44100 Hz Sample rate: Standard audio frequency
 	// 2 channels: This is stereo audio
@@ -118,6 +116,9 @@ func NewAPU() *APU {
 	apu.channel2 = &SoundChannel{channelNumber: 2}
 	apu.channel3 = &SoundChannel{channelNumber: 3}
 	apu.channel4 = &SoundChannel{channelNumber: 4}
+
+	// Set up channel 3 to point to the wave RAM slice that was passed in
+	apu.channel3.waveRAM = waveRAM
 
 	// Start the go function which will continually pull samples from the audio buffer and play them
 	frameTime := time.Second / time.Duration(bufferSeconds)
