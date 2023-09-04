@@ -1,4 +1,4 @@
-package main
+package cartridges
 
 import (
 	"fmt"
@@ -8,6 +8,10 @@ import (
 )
 
 const (
+	ROMEndAddress           = 0x8000
+	ExternalRAMStartAddress = 0xA000
+	ExternalRAMEndAddress   = 0xC000
+
 	CartridgeTypeAddress = 0x0147
 	ROMSizeAddress       = 0x0148
 	RAMSizeAddress       = 0x0149
@@ -77,7 +81,7 @@ type Cartridge interface {
 }
 
 // Read a cartridge binary file and return the correct cartridge type containing the file contents
-func parseCartridgeFile(filename string) Cartridge {
+func Make(filename string) Cartridge {
 	// Load cartridge binary data
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -123,11 +127,6 @@ func parseCartridgeFile(filename string) Cartridge {
 	default:
 		panic(fmt.Sprintf("Cartridge type %d not implemented", cartridgeType))
 	}
-}
-
-// Load an initialized Cartridge struct into Game Boy memory
-func (gb *Gameboy) LoadCartridge(c Cartridge) {
-	gb.memory.cartridge = c
 }
 
 // Generate a name for a cartridge RAM save file based on the original ROM file name (filename.ram)

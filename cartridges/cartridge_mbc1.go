@@ -1,4 +1,4 @@
-package main
+package cartridges
 
 import "fmt"
 
@@ -51,7 +51,7 @@ func (c *MemoryBankController1Cartridge) ReadFrom(address uint16) uint8 {
 	}
 
 	// Bank 1 is switched
-	if address < CartridgeEndAddress {
+	if address < ROMEndAddress {
 		var bank uint8 = c.romBank
 
 		// ROM bank 0 cannot be selected, hardware will use bank 1 instead

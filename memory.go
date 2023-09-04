@@ -1,21 +1,20 @@
 package main
 
+import "github.com/cbott/GoEmulate/cartridges"
+
 /*
 0000              8000        A000           C000       E000         FE00      FEA0     FF00    FF80
 | ROM (cartridge) | Video RAM | External RAM | RAM      | Unused     | OAM RAM | Unused | I/O   | HRAM
 */
 
 const (
-	CartridgeEndAddress     = 0x8000
-	ExternalRAMStartAddress = 0xA000
-	ExternalRAMEndAddress   = 0xC000
 	// Memory address of flag indicating whether to load from Boot ROM or cartrige address space
 	BOOT = 0xFF50
 )
 
 type Memory struct {
 	memory    [0x10000]uint8
-	cartridge Cartridge
+	cartridge cartridges.Cartridge
 	apu       *APU
 	bootrom   [0x100]uint8
 
@@ -37,8 +36,8 @@ func (m *Memory) set(address uint16, value uint8) {
 	} else if address == JOYPAD {
 		// Only bits 4 and 5 of the P1 register are writeable
 		m.memory[address] = (m.memory[address] & 0xF) | (value & 0b00110000)
-	} else if address < CartridgeEndAddress ||
-		address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
+	} else if address < cartridges.ROMEndAddress ||
+		address >= cartridges.ExternalRAMStartAddress && address < cartridges.ExternalRAMEndAddress {
 		m.cartridge.WriteTo(address, value)
 	} else if address >= NR10 && address < WaveRAMStart {
 		// Sound controls
@@ -57,14 +56,14 @@ func (m *Memory) get(address uint16) uint8 {
 
 	// Address space 0-8000 is mapped to the cartridge ROM
 	// Address space A000-C000 is mapped to cartridge RAM
-	if address < CartridgeEndAddress {
+	if address < cartridges.ROMEndAddress {
 		if m.cartridge == nil {
 			panic("Attempted to access cartridge before one is loaded")
 		}
 		return m.cartridge.ReadFrom(address)
 	}
 
-	if address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
+	if address >= cartridges.ExternalRAMStartAddress && address < cartridges.ExternalRAMEndAddress {
 		return m.cartridge.ReadFrom(address)
 	}
 
