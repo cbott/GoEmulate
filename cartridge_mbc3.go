@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 // Real Time Clock registers
 // Address	Value				Range
@@ -20,6 +23,7 @@ const (
 // Memory Bank Controller 3 Cartridge
 // 2MiB ROM / 32KiB RAM, Timer
 type MemoryBankController3Cartridge struct {
+	filename   string
 	rom        []uint8
 	ram        [][RAMBankSize]uint8
 	rtc        [NumRTCBanks]uint8
@@ -41,8 +45,8 @@ type MemoryBankController3Cartridge struct {
 	hasRTC bool
 }
 
-func NewMBC3Cartridge(data []uint8) *MemoryBankController3Cartridge {
-	c := MemoryBankController3Cartridge{rom: data}
+func NewMBC3Cartridge(filename string, data []uint8) *MemoryBankController3Cartridge {
+	c := MemoryBankController3Cartridge{rom: data, filename: filename}
 	c.numRomBanks = 1 << (data[ROMSizeAddress] + 1)
 
 	ramSizeKey := data[RAMSizeAddress]
@@ -56,6 +60,9 @@ func NewMBC3Cartridge(data []uint8) *MemoryBankController3Cartridge {
 	if cartridgeType == 0x0F || cartridgeType == 0x10 {
 		c.hasRTC = true
 	}
+
+	// Load RAM state
+	c.LoadRAM()
 
 	return &c
 }
@@ -147,5 +154,32 @@ func (c *MemoryBankController3Cartridge) WriteTo(address uint16, value uint8) {
 	default:
 		// Our cartridge will ignore writes to invalid addresses
 		return
+	}
+}
+
+// Save cartridge RAM contents to a file
+func (c *MemoryBankController3Cartridge) SaveRAM() {
+	if c.numRamBanks == 0 {
+		log.Printf("Cartridge does not have any RAM banks to save\n")
+		return
+	}
+	// Note: saving is enabled here even if the physical cartridge wouldn't have had the battery to support it
+	err := WriteRAMToFile(c.filename, c.ram)
+	if err != nil {
+		log.Printf("Unable save RAM: %v\n", err)
+	}
+}
+
+// Load cartridge RAM from a file
+func (c *MemoryBankController3Cartridge) LoadRAM() {
+	// If cartridge does not have RAM we will skip any sort of loading
+	if c.numRamBanks == 0 {
+		return
+	}
+
+	err := ReadRAMFromFile(c.filename, c.ram)
+	if err != nil {
+		// We will be permissive here continue running after logging the issue
+		log.Printf("Unable to load RAM from file: %v\n", err)
 	}
 }

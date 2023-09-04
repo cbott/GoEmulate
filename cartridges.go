@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
+	"os"
 )
 
 const (
@@ -70,6 +72,8 @@ var ramSizeMap = map[uint8]uint16{
 type Cartridge interface {
 	ReadFrom(address uint16) uint8
 	WriteTo(address uint16, value uint8)
+	LoadRAM()
+	SaveRAM()
 }
 
 // Read a cartridge binary file and return the correct cartridge type containing the file contents
@@ -115,7 +119,7 @@ func parseCartridgeFile(filename string) Cartridge {
 	case 0x01:
 		return NewMBC1Cartridge(data)
 	case 0x0F, 0x10, 0x11, 0x12, 0x13:
-		return NewMBC3Cartridge(data)
+		return NewMBC3Cartridge(filename, data)
 	default:
 		panic(fmt.Sprintf("Cartridge type %d not implemented", cartridgeType))
 	}
@@ -124,4 +128,54 @@ func parseCartridgeFile(filename string) Cartridge {
 // Load an initialized Cartridge struct into Game Boy memory
 func (gb *Gameboy) LoadCartridge(c Cartridge) {
 	gb.memory.cartridge = c
+}
+
+// Generate a name for a cartridge RAM save file based on the original ROM file name (filename.ram)
+func getSaveFileName(name string) string {
+	return name + ".ram"
+}
+
+// Write the contents of all RAM banks to a RAM save file (filename.ram)
+func WriteRAMToFile(filename string, ramBanks [][RAMBankSize]uint8) error {
+	filename = getSaveFileName(filename)
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0664)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Write each RAM bank to the file
+	for i := 0; i < len(ramBanks); i++ {
+		_, err = f.Write(ramBanks[i][:])
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Printf("Saved RAM to file %v\n", filename)
+	return nil
+}
+
+// Read from a RAM save file to fill RAM banks
+func ReadRAMFromFile(filename string, ramBanks [][RAMBankSize]uint8) error {
+	filename = getSaveFileName(filename)
+	// Load RAM binary file
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	// Check RAM size
+	banks := len(ramBanks)
+	expectedBytes := banks * RAMBankSize
+	if len(data) != expectedBytes {
+		return fmt.Errorf("RAM file %s size (%vB) does not match cartrige expectation (%vB)", filename, len(data), expectedBytes)
+	}
+
+	for i := 0; i < expectedBytes; i++ {
+		ramBanks[i/RAMBankSize][i%RAMBankSize] = data[i]
+	}
+
+	log.Printf("Loaded RAM from file %v\n", filename)
+	return nil
 }
