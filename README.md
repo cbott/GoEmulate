@@ -23,13 +23,13 @@ To Do List
 - implement serial
 
 Completed Tasks
-- RAM saving
 - longer compare with goboy
 - access registers by enum
 - window scaling
 - MBC3 cartridge type
 - code cleanup/resolve todos
 - implement sound
+- RAM saving
 
 Setup
 -----

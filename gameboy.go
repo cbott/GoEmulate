@@ -1,10 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
-
 const (
 	CpuSpeed        = 4194304 // Hz
 	FramesPerSecond = 60.0
@@ -31,9 +26,6 @@ type Gameboy struct {
 	pendingInterruptEnable bool
 
 	screenCleared bool
-
-	// TODO: (debug) delete debug counter
-	debugCounter int32
 }
 
 // Return the 8 bit value in memory at address (PC) and then increment PC
@@ -108,24 +100,6 @@ func (gb *Gameboy) RunNextFrame() {
 
 // Returns the number of clock cycles to complete (4MHz cycles)
 func (gb *Gameboy) RunNextOpcode() int {
-	gb.debugCounter++
-
-	if gb.debugCounter == -1 {
-		fmt.Printf("debug\n")
-	}
-
-	if gb.debugCounter < -4000000 {
-		f, err := os.OpenFile("gb_results.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			panic("unable to open log")
-		}
-		defer f.Close()
-		fmt.Fprintf(f, "X:%v A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X MEM:%02X,%02X,%02X,%02X\n",
-			gb.currentScanX, gb.cpu.A, gb.cpu.F, gb.cpu.B, gb.cpu.C, gb.cpu.D, gb.cpu.E, gb.cpu.H, gb.cpu.L,
-			gb.cpu.SP, gb.cpu.PC, gb.memory.get(gb.cpu.PC), gb.memory.get(gb.cpu.PC+1),
-			gb.memory.get(gb.cpu.PC+2), gb.memory.get(gb.cpu.PC+3))
-	}
-
 	opcode := gb.popPC()
 	return gb.Opcode(opcode) * 4
 }
