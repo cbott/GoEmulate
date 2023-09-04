@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/cbott/GoEmulate/cartridges"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 )
@@ -72,7 +73,7 @@ func run() {
 	}
 
 	gb := NewGameBoy()
-	gb.LoadCartridge(parseCartridgeFile("roms/pokemon_red.gb"))
+	gb.LoadCartridge(cartridges.Make("roms/pokemon_red.gb"))
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),

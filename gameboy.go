@@ -1,5 +1,7 @@
 package main
 
+import "github.com/cbott/GoEmulate/cartridges"
+
 const (
 	CpuSpeed        = 4194304 // Hz
 	FramesPerSecond = 60.0
@@ -26,6 +28,11 @@ type Gameboy struct {
 	pendingInterruptEnable bool
 
 	screenCleared bool
+}
+
+// Load an initialized Cartridge struct into Game Boy memory
+func (gb *Gameboy) LoadCartridge(c cartridges.Cartridge) {
+	gb.memory.cartridge = c
 }
 
 // Return the 8 bit value in memory at address (PC) and then increment PC

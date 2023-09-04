@@ -1,4 +1,4 @@
-package main
+package cartridges
 
 // Basic cartridge containing 32KiB ROM from 0000-7FFF
 type ROMOnlyCartridge struct {
