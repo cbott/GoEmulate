@@ -72,7 +72,7 @@ func run() {
 	// win.SetSmooth(true)
 
 	gb := NewGameBoy()
-	gb.LoadCartridge(parseCartridgeFile("roms/tetris.gb"))
+	gb.LoadCartridge(parseCartridgeFile("roms/pokemon_red.gb"))
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),
@@ -89,6 +89,10 @@ func run() {
 			gb.ReadKeyboard(win)
 			gb.RunNextFrame()
 			RenderScreen(win, picture, &gb.screenData)
+			// Pressing 'P' will save RAM contents to a file
+			if win.JustPressed(pixelgl.KeyP) {
+				gb.memory.cartridge.SaveRAM()
+			}
 		default:
 		}
 	}

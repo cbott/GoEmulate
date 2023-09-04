@@ -137,3 +137,13 @@ func (c *MemoryBankController1Cartridge) WriteTo(address uint16, value uint8) {
 
 	// TODO: handle writes to invalid address? - some other emulators just do nothing
 }
+
+// Save cartridge RAM contents to a file
+func (c *MemoryBankController1Cartridge) SaveRAM() {
+
+}
+
+// Load cartridge RAM from a file
+func (c *MemoryBankController1Cartridge) LoadRAM() {
+
+}

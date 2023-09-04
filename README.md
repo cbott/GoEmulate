@@ -12,9 +12,9 @@ GoEmulate is a learning project, and the first emulator I have written. The code
 
 To Do List
 ----------
-- RAM saving and CPU save states
 - reorganize into packages
 - fix display bug with window over background
+- CPU save states
 - allow loading files from cmd line argument
 - more unit tests
 - better error handling
@@ -23,6 +23,7 @@ To Do List
 - implement serial
 
 Completed Tasks
+- RAM saving
 - longer compare with goboy
 - access registers by enum
 - window scaling
