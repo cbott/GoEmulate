@@ -1,6 +1,9 @@
 package main
 
-import "github.com/cbott/GoEmulate/cartridges"
+import (
+	"github.com/cbott/GoEmulate/cartridges"
+	"github.com/cbott/GoEmulate/sound"
+)
 
 /*
 0000              8000        A000           C000       E000         FE00      FEA0     FF00    FF80
@@ -15,7 +18,7 @@ const (
 type Memory struct {
 	memory    [0x10000]uint8
 	cartridge cartridges.Cartridge
-	apu       *APU
+	apu       *sound.APU
 	bootrom   [0x100]uint8
 
 	// Internal counter to keep track of when the DIV register should increment
@@ -39,7 +42,7 @@ func (m *Memory) set(address uint16, value uint8) {
 	} else if address < cartridges.ROMEndAddress ||
 		address >= cartridges.ExternalRAMStartAddress && address < cartridges.ExternalRAMEndAddress {
 		m.cartridge.WriteTo(address, value)
-	} else if address >= NR10 && address < WaveRAMStart {
+	} else if address >= sound.NR10 && address < sound.WaveRAMStart {
 		// Sound controls
 		m.apu.WriteTo(address, value)
 	} else {
@@ -83,7 +86,7 @@ func (m *Memory) get(address uint16) uint8 {
 	}
 
 	// Sound register access
-	if address >= NR10 && address < WaveRAMStart {
+	if address >= sound.NR10 && address < sound.WaveRAMStart {
 		return m.apu.ReadFrom(address)
 	}
 
@@ -96,10 +99,8 @@ func (m *Memory) get(address uint16) uint8 {
 
 func (m *Memory) Init() {
 	m.bootrom = BootRom
-	// TODO: Implementing the APU like this feels hacky
-	m.apu = NewAPU()
-	// TODO: this is kind of a funky way to do things?
-	m.apu.channel3.waveRAM = m.memory[WaveRAMStart:]
+	// TODO: Having the APU as a member off the memory struct is not ideal
+	m.apu = sound.NewAPU(m.memory[sound.WaveRAMStart:])
 }
 
 // Perform a DMA transfer into OAM RAM from the specified source address (divided by 0x100)
