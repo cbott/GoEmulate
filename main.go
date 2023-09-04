@@ -10,7 +10,8 @@ import (
 )
 
 // Emulator settings
-// SkipBoot: Skip running the bootrom and begin execution from cartridge immediately
+// DefaultScale: initial size of the Game Boy window
+// SkipBoot: skip running the bootrom and begin execution from cartridge immediately
 // UseDebugColors: color sprites red, window green, background blue
 const (
 	DefaultScale   = 4
@@ -69,7 +70,6 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
-	// win.SetSmooth(true)
 
 	gb := NewGameBoy()
 	gb.LoadCartridge(parseCartridgeFile("roms/pokemon_red.gb"))
