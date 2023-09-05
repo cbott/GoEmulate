@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 var cbRegisterOrder = []register8{
 	regB,

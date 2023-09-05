@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 // Pixel Processing Unit
 
@@ -361,7 +361,7 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 		// Set the appropriate pixel of the screen buffer
 		red, green, blue := getColorFromPalette(pixelColor, palette)
 
-		if UseDebugColors {
+		if gb.debugColors {
 			red = 0
 			if drawWindow && absoluteX >= windowX {
 				blue = 0
@@ -376,9 +376,9 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 			}
 		}
 
-		gb.screenData[absoluteX][lineNumber][0] = red
-		gb.screenData[absoluteX][lineNumber][1] = green
-		gb.screenData[absoluteX][lineNumber][2] = blue
+		gb.ScreenData[absoluteX][lineNumber][0] = red
+		gb.ScreenData[absoluteX][lineNumber][1] = green
+		gb.ScreenData[absoluteX][lineNumber][2] = blue
 	}
 	return lineBGPixelPriority
 }
@@ -500,7 +500,7 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 				// Set the appropriate pixel of the screen buffer
 				red, green, blue := getColorFromPalette(pixelColor, palette)
 
-				if UseDebugColors {
+				if gb.debugColors {
 					if red == 0 {
 						red += 50
 					}
@@ -508,9 +508,9 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 					blue = 0
 				}
 
-				gb.screenData[pixelX][lineNumber][0] = red
-				gb.screenData[pixelX][lineNumber][1] = green
-				gb.screenData[pixelX][lineNumber][2] = blue
+				gb.ScreenData[pixelX][lineNumber][0] = red
+				gb.ScreenData[pixelX][lineNumber][1] = green
+				gb.ScreenData[pixelX][lineNumber][2] = blue
 			}
 		}
 	}
@@ -525,15 +525,15 @@ func (gb *Gameboy) clearScreen() {
 
 	// Set every pixel to white, or yellow for debug
 	var blue uint8 = 255
-	if UseDebugColors {
+	if gb.debugColors {
 		blue = 0
 	}
 
-	for x := 0; x < len(gb.screenData); x++ {
-		for y := 0; y < len(gb.screenData[x]); y++ {
-			gb.screenData[x][y][0] = 255
-			gb.screenData[x][y][1] = 255
-			gb.screenData[x][y][2] = blue
+	for x := 0; x < len(gb.ScreenData); x++ {
+		for y := 0; y < len(gb.ScreenData[x]); y++ {
+			gb.ScreenData[x][y][0] = 255
+			gb.ScreenData[x][y][1] = 255
+			gb.ScreenData[x][y][2] = blue
 		}
 	}
 

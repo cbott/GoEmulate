@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cbott/GoEmulate/cartridges"
+	"github.com/cbott/GoEmulate/gameboy"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 )
@@ -20,12 +21,12 @@ const (
 	UseDebugColors = false
 )
 
-func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[ScreenWidth][ScreenHeight][3]uint8) {
-	for y := 0; y < ScreenHeight; y++ {
-		for x := 0; x < ScreenWidth; x++ {
+func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[gameboy.ScreenWidth][gameboy.ScreenHeight][3]uint8) {
+	for y := 0; y < gameboy.ScreenHeight; y++ {
+		for x := 0; x < gameboy.ScreenWidth; x++ {
 			col := data[x][y]
 			rgb := color.RGBA{R: col[0], G: col[1], B: col[2], A: 0xFF}
-			picture.Pix[(ScreenHeight-1-y)*ScreenWidth+x] = rgb
+			picture.Pix[(gameboy.ScreenHeight-1-y)*gameboy.ScreenWidth+x] = rgb
 		}
 	}
 
@@ -36,34 +37,20 @@ func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[Scr
 	// Scale the Game Boy screen to maximize the size within the window
 	// scale = min(windowX/gameboyX, windowY/gameboyY)
 	windowSize := window.Bounds().Size()
-	divisor := pixel.V(1.0/ScreenWidth, 1.0/ScreenHeight)
+	divisor := pixel.V(1.0/gameboy.ScreenWidth, 1.0/gameboy.ScreenHeight)
 	scale := math.Min(windowSize.ScaledXY(divisor).XY())
 
 	// Draw the Game Boy screen to the window
-	sprite := pixel.NewSprite(pixel.Picture(picture), pixel.R(0, 0, ScreenWidth, ScreenHeight))
+	sprite := pixel.NewSprite(pixel.Picture(picture), pixel.R(0, 0, gameboy.ScreenWidth, gameboy.ScreenHeight))
 	sprite.Draw(window, pixel.IM.Scaled(pixel.ZV, scale).Moved(window.Bounds().Center()))
 
 	window.Update()
 }
 
-func NewGameBoy() *Gameboy {
-	var gb = Gameboy{}
-	gb.cpu = &CpuRegisters{}
-	gb.memory = &Memory{}
-	gb.memory.Init()
-
-	if SkipBoot {
-		gb.memory.BypassBootROM()
-		gb.cpu.BypassBootROM()
-	}
-
-	return &gb
-}
-
 func run() {
 	cfg := pixelgl.WindowConfig{
 		Title:     "Game Boy Emulator",
-		Bounds:    pixel.R(0, 0, ScreenWidth*DefaultScale, ScreenHeight*DefaultScale),
+		Bounds:    pixel.R(0, 0, gameboy.ScreenWidth*DefaultScale, gameboy.ScreenHeight*DefaultScale),
 		VSync:     true,
 		Resizable: true,
 	}
@@ -72,27 +59,27 @@ func run() {
 		panic(err)
 	}
 
-	gb := NewGameBoy()
+	gb := gameboy.NewGameBoy(SkipBoot, UseDebugColors)
 	gb.LoadCartridge(cartridges.Make("roms/pokemon_red.gb"))
 
 	picture := &pixel.PictureData{
-		Pix:    make([]color.RGBA, ScreenWidth*ScreenHeight),
-		Stride: ScreenWidth,
-		Rect:   pixel.R(0, 0, ScreenWidth, ScreenHeight),
+		Pix:    make([]color.RGBA, gameboy.ScreenWidth*gameboy.ScreenHeight),
+		Stride: gameboy.ScreenWidth,
+		Rect:   pixel.R(0, 0, gameboy.ScreenWidth, gameboy.ScreenHeight),
 	}
 
 	// Ticker will execute once per Gameboy frame
-	ticker := time.NewTicker(time.Second / FramesPerSecond)
+	ticker := time.NewTicker(time.Second / gameboy.FramesPerSecond)
 
 	for !win.Closed() {
 		select {
 		case <-ticker.C:
 			gb.ReadKeyboard(win)
 			gb.RunNextFrame()
-			RenderScreen(win, picture, &gb.screenData)
+			RenderScreen(win, picture, &gb.ScreenData)
 			// Pressing 'P' will save RAM contents to a file
 			if win.JustPressed(pixelgl.KeyP) {
-				gb.memory.cartridge.SaveRAM()
+				gb.SaveCartridgeRAM()
 			}
 		default:
 		}

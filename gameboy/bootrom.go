@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 // Game Boy boot ROM program
 var BootRom = [0x100]uint8{

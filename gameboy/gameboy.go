@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 import "github.com/cbott/GoEmulate/cartridges"
 
@@ -14,7 +14,7 @@ type Gameboy struct {
 
 	// Array of RGB triplets for each pixel on the Game Boy screen
 	// This is filled in throughout the PPU processes and then displayed
-	screenData [ScreenWidth][ScreenHeight][3]uint8
+	ScreenData [ScreenWidth][ScreenHeight][3]uint8
 
 	// scan is the horizontal "position" in clock cycles where the PPU is currently drawing
 	currentScanX int
@@ -28,11 +28,34 @@ type Gameboy struct {
 	pendingInterruptEnable bool
 
 	screenCleared bool
+	debugColors   bool
+}
+
+// Create and initialize a Game Boy struct
+func NewGameBoy(skipboot bool, debugColors bool) *Gameboy {
+	var gb = Gameboy{}
+	gb.cpu = &CpuRegisters{}
+	gb.memory = &Memory{}
+	gb.memory.Init()
+
+	if skipboot {
+		gb.memory.BypassBootROM()
+		gb.cpu.BypassBootROM()
+	}
+
+	gb.debugColors = debugColors
+
+	return &gb
 }
 
 // Load an initialized Cartridge struct into Game Boy memory
 func (gb *Gameboy) LoadCartridge(c cartridges.Cartridge) {
 	gb.memory.cartridge = c
+}
+
+// Write cartridge RAM contents to the save file
+func (gb *Gameboy) SaveCartridgeRAM() {
+	gb.memory.cartridge.SaveRAM()
 }
 
 // Return the 8 bit value in memory at address (PC) and then increment PC

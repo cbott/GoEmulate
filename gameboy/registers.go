@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 // Define register constants for each available CPU register
 

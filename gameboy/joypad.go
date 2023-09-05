@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 import "github.com/faiface/pixel/pixelgl"
 
