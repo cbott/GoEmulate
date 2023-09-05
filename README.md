@@ -7,7 +7,7 @@ GoEmulate is an emulator for the original Game Boy (DMG) written entirely in Go,
 
 Currently no support is planned for GBC/GBA emulation
 
-GoEmulate is a learning project, and the first emulator I have written. The code was heavily influenced by all the projects listed below as development resources and I enocourage you to use them directly.
+GoEmulate is a learning project, and the first emulator I have written. The code was heavily influenced by all the projects listed below as development resources and I encourage you to use them directly.
 
 
 To Do List

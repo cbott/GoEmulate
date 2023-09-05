@@ -124,6 +124,8 @@ func Make(filename string) Cartridge {
 		return NewMBC1Cartridge(data)
 	case 0x0F, 0x10, 0x11, 0x12, 0x13:
 		return NewMBC3Cartridge(filename, data)
+	case 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E:
+		return NewMBC5Cartridge(filename, data)
 	default:
 		panic(fmt.Sprintf("Cartridge type %d not implemented", cartridgeType))
 	}
