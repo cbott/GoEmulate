@@ -60,7 +60,7 @@ func run() {
 	}
 
 	gb := gameboy.NewGameBoy(SkipBoot, UseDebugColors)
-	gb.LoadCartridge(cartridges.Make("roms/pokemon_red.gb"))
+	gb.LoadCartridge(cartridges.Make("roms/pokemon_yellow.gb"))
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, gameboy.ScreenWidth*gameboy.ScreenHeight),
