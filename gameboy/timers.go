@@ -1,7 +1,7 @@
 // timers.go
 // Handle Game Boy timer and divider registers
 
-package main
+package gameboy
 
 const (
 	DIV              = 0xFF04 // Divider register

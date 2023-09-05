@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 import (
 	"testing"
@@ -36,7 +36,7 @@ func TestADC(t *testing.T) {
 		{0, 255, true, 0, true, false, true, true},
 	}
 
-	gb := NewGameBoy()
+	gb := NewGameBoy(false, false)
 
 	for i, testcase := range testcases {
 		gb.cpu.setRegister(regA, testcase.initialA)
@@ -70,7 +70,7 @@ func TestDAA(t *testing.T) {
 		{0xB4, false, false, false, 0x14, false, false, true},
 		{0xB4, true, true, true, 0x4e, false, false, true},
 	}
-	gb := NewGameBoy()
+	gb := NewGameBoy(false, false)
 
 	for _, testcase := range testcases {
 		gb.cpu.setRegister(regA, testcase.initialValue)

@@ -1,4 +1,4 @@
-package main
+package gameboy
 
 // Code for interrupt controller
 
