@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
 
 const (
@@ -102,7 +103,8 @@ func Make(filename string) Cartridge {
 	}
 
 	var romSize int = 32 * (1 << data[ROMSizeAddress])
-	var title string = string(data[TitleAddress : TitleAddress+TitleLength])
+	// Title length can vary by cartridge type so we will just stop at the first null character
+	var title string = strings.Split(string(data[TitleAddress:TitleAddress+TitleLength]), "\x00")[0]
 
 	fmt.Printf("Cartridge file: %s\n", filename)
 	fmt.Printf("Title: %s\n", title)
