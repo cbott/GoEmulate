@@ -6,8 +6,7 @@ import (
 )
 
 // Memory Bank Controller 5 Cartridge
-// Up to 8MiB ROM (512 banks) / 128KiB RAM (16 banks)
-// MBC5 cartridges can support rumble but we will be ignoring that for now
+// Up to 8MiB ROM (512 banks) / 128KiB RAM (16 banks), optional rumble
 type MemoryBankController5Cartridge struct {
 	filename string
 	rom      []uint8
@@ -25,6 +24,8 @@ type MemoryBankController5Cartridge struct {
 
 	// Whether RAM reading and writing are enabled
 	ramEnabled bool
+	// Whether this cartridge supports rumble
+	hasRumble bool
 }
 
 func NewMBC5Cartridge(filename string, data []uint8) *MemoryBankController5Cartridge {
@@ -36,6 +37,12 @@ func NewMBC5Cartridge(filename string, data []uint8) *MemoryBankController5Cartr
 	c.numRamBanks = uint8(ramSize / 8) // 8KiB per bank
 	// Initialize RAM banks
 	c.ram = make([][RAMBankSize]uint8, c.numRamBanks)
+
+	// Cartridge types 0x1C/0x1D/0x1E have rumble motor
+	cartridgeType := data[CartridgeTypeAddress]
+	if cartridgeType == 0x1C || cartridgeType == 0x1D || cartridgeType == 0x1E {
+		c.hasRumble = true
+	}
 
 	// Load RAM state
 	c.LoadRAM()
@@ -93,9 +100,13 @@ func (c *MemoryBankController5Cartridge) WriteTo(address uint16, value uint8) {
 	case 4, 5:
 		// RAM Bank Select (4000-5FFF)
 		// Select RAM bank 0-15
-		// Mask to lower 4 bits only, though this should never matter, unclear what proper handling is
-		// TODO: if cartidge supports rumble bit 3 sets rumble state instead
-		c.ramBank = value & 0xF
+		if c.hasRumble {
+			// Lower 3 bits set RAM bank, bit 3 controls rumble motor (ignored by emulator)
+			c.ramBank = value & 0x7
+		} else {
+			// Lower 4 bits set RAM bank
+			c.ramBank = value & 0xF
+		}
 	case 0xA, 0xB:
 		// Write to RAM (A000-BFFF)
 		// Writing to RAM when not enabled does nothing
