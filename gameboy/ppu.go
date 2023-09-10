@@ -258,7 +258,7 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 	// Returns an array with an element for each pixel indicating if Sprites can draw over it
 	scrollX := gb.memory.get(SCX)
 	scrollY := gb.memory.get(SCY)
-	windowX := gb.memory.get(WX) - 7 // WX has a 7 pixel offset
+	windowX := int16(gb.memory.get(WX)) - 7 // WX has a 7 pixel offset
 	windowY := gb.memory.get(WY)
 	control := gb.memory.get(LCDC)
 
@@ -275,22 +275,20 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 		tileDataStartAddress = TileDataAddressLow
 	}
 
-	var tileMapStartAddress uint16
-	if drawWindow {
-		// If window is drawn on this line, use window map
-		// TODO: (future) verify behavior if window covers only a portion of the width
-		if (control & LCDC_window_map_select) == 0 {
-			tileMapStartAddress = 0x9800
-		} else {
-			tileMapStartAddress = 0x9C00
-		}
+	// Start location in memory for Window tiles
+	var windowTileMapStartAddress uint16
+	if (control & LCDC_window_map_select) == 0 {
+		windowTileMapStartAddress = 0x9800
 	} else {
-		// If just background, use background map
-		if (control & LCDC_bg_map_select) == 0 {
-			tileMapStartAddress = 0x9800
-		} else {
-			tileMapStartAddress = 0x9C00
-		}
+		windowTileMapStartAddress = 0x9C00
+	}
+
+	// Start location in memory for Background tiles
+	var bgTileMapStartAddress uint16
+	if (control & LCDC_bg_map_select) == 0 {
+		bgTileMapStartAddress = 0x9800
+	} else {
+		bgTileMapStartAddress = 0x9C00
 	}
 
 	var relativeY uint8
@@ -311,14 +309,22 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 	// is drawn with pallete entry 0 and will therefore be drawn over by sprites with priority 1
 	// Array value of 0 indicates this pixel should be drawn over
 	lineBGPixelPriority := [ScreenWidth]bool{}
-	var absoluteX uint8
 
 	// Set pixel colors for this line
+	var absoluteX uint8
 	for absoluteX = 0; absoluteX < ScreenWidth; absoluteX++ {
 		var relativeX uint8
-		if drawWindow && absoluteX >= windowX {
-			relativeX = absoluteX - windowX
+
+		// Depending on whether this pixel falls within the window or not we
+		// will change which tile map we use
+		tileMapForColumn := bgTileMapStartAddress
+
+		if drawWindow && int16(absoluteX) >= windowX {
+			// Pixel is in the Window area
+			relativeX = uint8(int16(absoluteX) - windowX)
+			tileMapForColumn = windowTileMapStartAddress
 		} else {
+			// Pixel is Background
 			relativeX = absoluteX + scrollX
 		}
 
@@ -326,7 +332,7 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 		tileCol := relativeX / 8
 
 		// Find the BG or Window map entry for this tile to see where in tile data to look
-		var tileNumber uint8 = gb.memory.get(tileMapStartAddress + uint16(tileRow)*32 + uint16(tileCol))
+		var tileNumber uint8 = gb.memory.get(tileMapForColumn + uint16(tileRow)*32 + uint16(tileCol))
 
 		var tileAddress uint16
 		if tileDataStartAddress == TileDataAddressLow {
@@ -363,7 +369,7 @@ func (gb *Gameboy) renderLineTiles(lineNumber uint8) [ScreenWidth]bool {
 
 		if gb.debugColors {
 			red = 0
-			if drawWindow && absoluteX >= windowX {
+			if drawWindow && int16(absoluteX) >= windowX {
 				blue = 0
 				if green == 0 {
 					green += 50
