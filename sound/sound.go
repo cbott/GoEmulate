@@ -152,27 +152,30 @@ func NewAPU(waveRAM []uint8) *APU {
 // Set APU to the state it would be in after boot ROM runs
 // if skipping normal bootrom execution we can run this instead
 func (apu *APU) BypassBootROM() {
+	// NR10 not changed from default
+
+	// NR11 sets wave duty to 0b10
+	apu.WriteTo(NR11, 0x80)
+
+	// NR12, set initial volume, envelope direction, and volume sweep pace
+	apu.channel1.nrX2RegisterValue = 0xF3
+	apu.channel1.applyNRx2()
+
+	// NR13/14, frequency value
+	apu.channel1.frequencyValue = 0x07C1
+
+	// No action for channels 2, 3, 4 as bootrom does not change values from the default
+
+	// NR50
+	apu.leftVolume = 0x7
+	apu.rightVolume = 0x7
+
+	// NR51
+	apu.nr51RegisterValue = 0xF3
+
+	// NR52
 	apu.on = true
-	// TODO: implement correctly
-	// memory[NR10] = 0x80
-	// memory[NR11] = 0xBF
-	// memory[NR12] = 0xF3
-	// memory[NR14] = 0xBF
-	// memory[NR21] = 0x3F
-	// memory[NR22] = 0x00
-	// memory[NR24] = 0xBF
-	// memory[NR30] = 0x7F
-	// memory[NR31] = 0xFF
-	// memory[NR32] = 0x9F
-	// memory[NR33] = 0xFF
-	// memory[NR34] = 0xBF
-	// memory[NR41] = 0xFF
-	// memory[NR42] = 0x00
-	// memory[NR43] = 0x00
-	// memory[NR44] = 0xBF
-	// memory[NR50] = 0x77
-	// memory[NR51] = 0xF3
-	// memory[NR52] = 0xF1
+	apu.channel1.on = true
 }
 
 // Advance audio processing unit by the specified number of machine cycles (4MHz)
@@ -218,12 +221,6 @@ func (apu *APU) RunAudioProcess(cycles int) {
 		leftUnscaled += sample4
 	}
 	if (apu.nr51RegisterValue & NR51_mix_ch4_right) != 0 {
-		if (apu.nr51RegisterValue & NR51_mix_ch3_left) != 0 {
-			leftUnscaled += sample3
-		}
-		if (apu.nr51RegisterValue & NR51_mix_ch3_right) != 0 {
-			rightUnscaled += sample3
-		}
 		rightUnscaled += sample4
 	}
 
@@ -249,7 +246,7 @@ func (apu *APU) WriteTo(address uint16, value uint8) {
 	case NR10:
 		// Channel 1 sweep
 		// Values take effect next time the channel is triggered
-		apu.channel1.nr10RegisterValue = value
+		apu.channel1.nr10RegisterValue = value & 0x7F
 	case NR11:
 		// Channel 1 length timer and duty cycle
 		// Duty Cycle: bits 6-7
