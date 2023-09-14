@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"time"
@@ -16,8 +17,9 @@ import (
 // SkipBoot: skip running the bootrom and begin execution from cartridge immediately
 // UseDebugColors: color sprites red, window green, background blue
 const (
+	// TODO: change to command line flags or at least allow overriding that way?
 	DefaultScale   = 4
-	SkipBoot       = false
+	SkipBoot       = true
 	UseDebugColors = false
 )
 
@@ -71,15 +73,44 @@ func run() {
 	// Ticker will execute once per Gameboy frame
 	ticker := time.NewTicker(time.Second / gameboy.FramesPerSecond)
 
+	var frameSpeedUp int = 1
+	last := time.Now()
+	avgwindow := 60
+	avgcounter := 0
+
 	for !win.Closed() {
 		select {
 		case <-ticker.C:
 			gb.ReadKeyboard(win)
-			gb.RunNextFrame()
+
+			for i := 0; i < frameSpeedUp; i++ {
+				gb.RunNextFrame()
+			}
+
 			RenderScreen(win, picture, &gb.ScreenData)
 			// Pressing 'P' will save RAM contents to a file
 			if win.JustPressed(pixelgl.KeyP) {
 				gb.SaveCartridgeRAM()
+			}
+			// Pressing "+/=" increases speed-up
+			if win.JustPressed(pixelgl.KeyEqual) && frameSpeedUp < 10 {
+				// Limit to 10x speed, on my machine we start to drop framerate around 13x
+				frameSpeedUp++
+				fmt.Printf("Increased speed to %v\n", frameSpeedUp)
+			}
+			// Pressing "-/_" decreases speed-up
+			if win.JustPressed(pixelgl.KeyMinus) && frameSpeedUp > 1 {
+				frameSpeedUp--
+				fmt.Printf("Decreased speed to %v\n", frameSpeedUp)
+			}
+
+			avgcounter++
+			if avgcounter >= avgwindow {
+				avgcounter = 0
+				dt := time.Since(last).Seconds()
+				last = time.Now()
+				win.SetTitle(fmt.Sprintf("FPS: %.f", float64(avgwindow)/dt))
+
 			}
 		default:
 		}
