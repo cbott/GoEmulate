@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image/color"
 	"math"
+	"os"
 	"time"
 
 	"github.com/cbott/GoEmulate/cartridges"
@@ -12,16 +14,8 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 )
 
-// Emulator settings
-// DefaultScale: initial size of the Game Boy window
-// SkipBoot: skip running the bootrom and begin execution from cartridge immediately
-// UseDebugColors: color sprites red, window green, background blue
-const (
-	// TODO: change to command line flags or at least allow overriding that way?
-	DefaultScale   = 4
-	SkipBoot       = true
-	UseDebugColors = false
-)
+// initial size of the Game Boy window, overridden by command line flag
+const DefaultScale = 4
 
 func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[gameboy.ScreenWidth][gameboy.ScreenHeight][3]uint8) {
 	for y := 0; y < gameboy.ScreenHeight; y++ {
@@ -50,9 +44,22 @@ func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[gam
 }
 
 func run() {
+	// Parse cmd line args
+	runBootROM := flag.Bool("bootrom", false, "run boot ROM prior to cartridge")
+	useDebugColors := flag.Bool("debug", false, "use debug colors (color sprites red, window green, background blue)")
+	scaleflag := flag.Int("scale", DefaultScale, "window scale factor")
+	flag.Parse()
+
+	romFile := flag.Arg(0)
+	if romFile == "" {
+		fmt.Println("ROM file must be specified")
+		os.Exit(1)
+	}
+
+	var scale float64 = float64(*scaleflag)
 	cfg := pixelgl.WindowConfig{
 		Title:     "Game Boy Emulator",
-		Bounds:    pixel.R(0, 0, gameboy.ScreenWidth*DefaultScale, gameboy.ScreenHeight*DefaultScale),
+		Bounds:    pixel.R(0, 0, gameboy.ScreenWidth*scale, gameboy.ScreenHeight*scale),
 		VSync:     true,
 		Resizable: true,
 	}
@@ -61,8 +68,8 @@ func run() {
 		panic(err)
 	}
 
-	gb := gameboy.NewGameBoy(SkipBoot, UseDebugColors)
-	gb.LoadCartridge(cartridges.Make("roms/pokemon_yellow.gb"))
+	gb := gameboy.NewGameBoy(!*runBootROM, *useDebugColors)
+	gb.LoadCartridge(cartridges.Make(romFile))
 
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, gameboy.ScreenWidth*gameboy.ScreenHeight),
@@ -74,43 +81,30 @@ func run() {
 	ticker := time.NewTicker(time.Second / gameboy.FramesPerSecond)
 
 	var frameSpeedUp int = 1
-	last := time.Now()
-	avgwindow := 60
-	avgcounter := 0
 
 	for !win.Closed() {
 		select {
 		case <-ticker.C:
 			gb.ReadKeyboard(win)
-
 			for i := 0; i < frameSpeedUp; i++ {
 				gb.RunNextFrame()
 			}
-
 			RenderScreen(win, picture, &gb.ScreenData)
+
 			// Pressing 'P' will save RAM contents to a file
 			if win.JustPressed(pixelgl.KeyP) {
 				gb.SaveCartridgeRAM()
 			}
-			// Pressing "+/=" increases speed-up
+			// Pressing '+/=' increases speed-up
 			if win.JustPressed(pixelgl.KeyEqual) && frameSpeedUp < 10 {
 				// Limit to 10x speed, on my machine we start to drop framerate around 13x
 				frameSpeedUp++
 				fmt.Printf("Increased speed to %v\n", frameSpeedUp)
 			}
-			// Pressing "-/_" decreases speed-up
+			// Pressing '-/_' decreases speed-up
 			if win.JustPressed(pixelgl.KeyMinus) && frameSpeedUp > 1 {
 				frameSpeedUp--
 				fmt.Printf("Decreased speed to %v\n", frameSpeedUp)
-			}
-
-			avgcounter++
-			if avgcounter >= avgwindow {
-				avgcounter = 0
-				dt := time.Since(last).Seconds()
-				last = time.Now()
-				win.SetTitle(fmt.Sprintf("FPS: %.f", float64(avgwindow)/dt))
-
 			}
 		default:
 		}
