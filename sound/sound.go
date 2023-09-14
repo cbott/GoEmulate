@@ -67,7 +67,8 @@ const (
 const (
 	// Actual sample rate for sound played out of your speakers
 	AudioSampleRate = 44100
-	bufferSeconds   = 120
+	// Size of the player's buffer, set to be 1/150th second of audio (reasonable number, divides sample rate nicely)
+	SamplesToBuffer = 294
 	CyclesPerSample = 4194304 / float64(AudioSampleRate)
 )
 
@@ -84,7 +85,6 @@ type APU struct {
 	channel3 *SoundChannel
 	channel4 *SoundChannel
 
-	player      *oto.Player
 	audioBuffer chan [2]uint8
 
 	// NR51 controls whether or not to mix each of the sound channels into the left and right audio outputs
@@ -97,19 +97,11 @@ type APU struct {
 
 func NewAPU(waveRAM []uint8) *APU {
 	apu := &APU{}
-	// Context Settings
-	// 44100 Hz Sample rate: Standard audio frequency
-	// 2 channels: This is stereo audio
-	// 1 Byte bit depth: Game Boy audio channels have 8-bit output
-	// 400 Byte buffer: stores 200 audio samples, comes out to ~1/4 frame length
-	context, err := oto.NewContext(AudioSampleRate, 2, 1, 400)
-	if err != nil {
-		log.Fatalf("Audio initialization error: %v", err)
-	}
-	apu.player = context.NewPlayer()
 
-	// At most we will allow up to 5000 samples to get backed up, hopefully this won't happen
-	apu.audioBuffer = make(chan [2]uint8, 5000)
+	// audioBuffer channel is the queue for audio samples to be passed from the main Game Boy process
+	// into the audio player. Size is set to hold 2 frames of audio to give some margin to mis-timing
+	// but limit audio lag to a single frame
+	apu.audioBuffer = make(chan [2]uint8, AudioSampleRate/30) // 44100 samples/sec / 60 frames/sec * 2
 
 	// Initialize our sound channels
 	apu.channel1 = &SoundChannel{channelNumber: 1}
@@ -120,33 +112,49 @@ func NewAPU(waveRAM []uint8) *APU {
 	// Set up channel 3 to point to the wave RAM slice that was passed in
 	apu.channel3.waveRAM = waveRAM
 
-	// Start the go function which will continually pull samples from the audio buffer and play them
-	frameTime := time.Second / time.Duration(bufferSeconds)
-	ticker := time.NewTicker(frameTime)
-	targetSamples := AudioSampleRate / bufferSeconds
-
-	go func() {
-		var reading [2]byte
-		var buffer []byte
-		for range ticker.C { // 1/120s
-			fbLen := len(apu.audioBuffer)
-			if fbLen >= targetSamples/2 { // 184
-				newBuffer := make([]byte, fbLen*2)
-				for i := 0; i < fbLen*2; i += 2 {
-					reading = <-apu.audioBuffer
-					newBuffer[i], newBuffer[i+1] = reading[0], reading[1]
-				}
-				buffer = newBuffer
-			}
-
-			_, err := apu.player.Write(buffer)
-			if err != nil {
-				log.Printf("error sampling: %v", err)
-			}
-		}
-	}()
+	// Context Settings
+	// 44100 Hz Sample rate: Standard audio frequency
+	// 2 channels: This is stereo audio
+	// 1 Byte bit depth: Game Boy audio channels have 8-bit output
+	// Buffer size * 2 due to each sample being 2 bytes
+	context, err := oto.NewContext(AudioSampleRate, 2, 1, SamplesToBuffer*2)
+	if err != nil {
+		log.Fatalf("Audio initialization error: %v", err)
+	} else {
+		// Start the go function which will continually pull samples from the audio buffer and play them
+		go startAudioPlayer(context, apu.audioBuffer)
+	}
 
 	return apu
+}
+
+// Blocking function which creates an oto player from the provided context and continually feeds it
+// samples from the provided channel. Should be called as a goroutine.
+func startAudioPlayer(context *oto.Context, samplesChannel chan [2]uint8) {
+	player := context.NewPlayer()
+	// We will run our ticker at double speed to prevent crackling that seems to happen
+	// sometimes when running at exactly the rate we expect samples to be generated
+	ticker := time.NewTicker(time.Second / time.Duration(2*AudioSampleRate/SamplesToBuffer)) // 1/300th second
+
+	var reading [2]byte
+	var buffer []byte
+	for range ticker.C {
+		fbLen := len(samplesChannel)
+		if fbLen >= SamplesToBuffer {
+			// If we have collected a full buffer's worth of samples, write them to an array and send to Player
+			newBuffer := make([]byte, SamplesToBuffer*2)
+			for i := 0; i < SamplesToBuffer*2; i += 2 {
+				reading = <-samplesChannel
+				newBuffer[i], newBuffer[i+1] = reading[0], reading[1]
+			}
+			buffer = newBuffer
+		}
+
+		_, err := player.Write(buffer)
+		if err != nil {
+			log.Printf("error sampling: %v", err)
+		}
+	}
 }
 
 // Set APU to the state it would be in after boot ROM runs
@@ -232,7 +240,12 @@ func (apu *APU) RunAudioProcess(cycles int) {
 	var left uint8 = uint8(leftUnscaled * float64(apu.leftVolume+1) / 8.0)
 	var right uint8 = uint8(rightUnscaled * float64(apu.rightVolume+1) / 8.0)
 
-	apu.audioBuffer <- [2]uint8{left, right}
+	// If the audio buffer is full skip this sample
+	// This occurs during speed-up when samples are generated faster than they are played
+	select {
+	case apu.audioBuffer <- [2]uint8{left, right}:
+	default:
+	}
 }
 
 // Write to an Audio control register
