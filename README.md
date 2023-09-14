@@ -13,8 +13,6 @@ GoEmulate is a learning project, and the first emulator I have written. The code
 To Do List
 ----------
 - CPU save states
-- Speed up
-- allow loading files from cmd line argument
 - more unit tests
 - better error handling
 - allow loading files from GUI or similar
@@ -31,6 +29,8 @@ Completed Tasks
 - RAM saving
 - reorganize into packages
 - fix display bug with window over background
+- Speed up
+- allow loading files from cmd line argument
 
 Setup
 -----
