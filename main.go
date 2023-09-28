@@ -78,7 +78,8 @@ func run() {
 	}
 
 	// Ticker will execute once per Gameboy frame
-	ticker := time.NewTicker(time.Second / gameboy.FramesPerSecond)
+	var factor float64 = gameboy.FramesPerSecond
+	ticker := time.NewTicker(time.Nanosecond * time.Duration(int64(1e9/factor)))
 
 	var frameSpeedUp int = 1
 

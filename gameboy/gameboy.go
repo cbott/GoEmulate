@@ -3,9 +3,9 @@ package gameboy
 import "github.com/cbott/GoEmulate/cartridges"
 
 const (
-	CpuSpeed        = 4194304 // Hz
-	FramesPerSecond = 60.0
-	CyclesPerFrame  = CpuSpeed / int(FramesPerSecond)
+	CpuSpeed        = 4194304                                      // Hz
+	CyclesPerFrame  = (ScreenHeight + VBlankLines) * CyclesPerLine // 154 lines
+	FramesPerSecond = float64(CpuSpeed) / CyclesPerFrame
 )
 
 type Gameboy struct {
@@ -100,6 +100,11 @@ func (gb *Gameboy) RunNextFrame() {
 	// Run Gameboy processes up to the next complete frame to be displayed
 	var totalCycles int
 	var lastTotalCycles int
+
+	if gb.debugColors {
+		// Helps to identify areas of the screen that were not redrawn this frame
+		gb.clearScreen()
+	}
 
 	for totalCycles = 0; totalCycles < CyclesPerFrame; {
 		var operationCycles int

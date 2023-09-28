@@ -1,18 +1,23 @@
 package cartridges
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 // Memory Bank Controller 1 Cartridge
-// 2MiB ROM / 32KiB RAM
+// Up to 2MiB ROM (128 banks) / 8KiB RAM (1 bank)
+// OR
+// Up to 512KiB ROM (32 banks) / 32KiB RAM (4 banks)
 type MemoryBankController1Cartridge struct {
-	rom []uint8
-	ram [][RAMBankSize]uint8
+	filename string
+	rom      []uint8
+	ram      [][RAMBankSize]uint8
 
-	// Number of available 16MiB ROM banks we can switch between (2-512)
-	numRomBanks uint16
-
+	// Number of available 16MiB ROM banks we can switch between (2-128)
+	numRomBanks uint8
 	// Number of available 8MiB RAM banks we can switch between (0-4)
-	numRamBanks uint16
+	numRamBanks uint8
 
 	// currently selected ROM bank for 4000-7FFF
 	romBank uint8
@@ -28,24 +33,24 @@ type MemoryBankController1Cartridge struct {
 	ramMode bool
 }
 
-func NewMBC1Cartridge(data []uint8) *MemoryBankController1Cartridge {
-	c := MemoryBankController1Cartridge{rom: data}
-	// TODO: reduce duplication with cartridge detection
-	// TODO: validate cartridge values match actual file size/headers
+func NewMBC1Cartridge(filename string, data []uint8) *MemoryBankController1Cartridge {
+	c := MemoryBankController1Cartridge{rom: data, filename: filename}
 	c.numRomBanks = 1 << (data[ROMSizeAddress] + 1)
 
 	ramSizeKey := data[RAMSizeAddress]
 	ramSize := ramSizeMap[ramSizeKey]
-	// 8KiB per bank
-	c.numRamBanks = ramSize / 8
+	c.numRamBanks = uint8(ramSize / 8) // 8KiB per bank
 	// Initialize RAM banks
 	c.ram = make([][RAMBankSize]uint8, c.numRamBanks)
+
+	c.LoadRAM()
 
 	return &c
 }
 
 func (c *MemoryBankController1Cartridge) ReadFrom(address uint16) uint8 {
-	// Bank 0 is fixed
+	// Read from ROM Bank 0 (fixed)
+	// TODO: support multi-cartridges which can switch this bank in some cases
 	if address < ROMBankSize {
 		return c.rom[address]
 	}
@@ -65,13 +70,14 @@ func (c *MemoryBankController1Cartridge) ReadFrom(address uint16) uint8 {
 			bank |= c.ramBank << 5
 		}
 
-		offset := uint32(bank-1) * ROMBankSize
+		// Mask bank to the number of banks available
+		bank &= c.numRomBanks - 1
 
+		offset := uint32(bank-1) * ROMBankSize
 		return c.rom[uint32(address)+offset]
 	}
 
 	// RAM
-	// TODO: reduce duplication with Write
 	if address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
 		// Reading from RAM when not enabled is undefined
 		if !c.ramEnabled {
@@ -83,7 +89,10 @@ func (c *MemoryBankController1Cartridge) ReadFrom(address uint16) uint8 {
 		if c.ramMode {
 			bank = c.ramBank
 		}
-		// TODO: compare to numRamBanks
+
+		// Limit access to RAM banks that actually exist
+		// TODO: verify correct behavior
+		bank %= c.numRamBanks
 
 		// Read the value from the appropriate RAM bank
 		return c.ram[bank][address-ExternalRAMStartAddress]
@@ -93,37 +102,26 @@ func (c *MemoryBankController1Cartridge) ReadFrom(address uint16) uint8 {
 }
 
 func (c *MemoryBankController1Cartridge) WriteTo(address uint16, value uint8) {
-	// RAM Enable Select
-	if address <= 0x1FFF {
+	switch address >> 12 {
+	case 0, 1:
+		// RAM Enable Select (0000-1FFF)
 		c.ramEnabled = (value & 0xF) == 0xA
-	}
-
-	// ROM Bank Select
-	if address >= 0x2000 && address <= 0x3FFF {
-		// TOOD: mask correctly based on actual ROM size (compare to numRomBanks)
+	case 2, 3:
+		// ROM Bank Select (2000-3FFF)
 		c.romBank = value & 0b11111
-	}
-
-	// RAM Bank Select
-	if address >= 4000 && address <= 0x5FFF {
-		// TODO: I think we actually need to check ramEnabled here and only set RAM bank if enabled
-		// otherwise set ROM bank
+	case 4, 5:
+		// RAM Bank Select (4000-5FFF)
+		// 0-3, select RAM bank or upper 2 bits of ROM bank
 		c.ramBank = value & 0b11
-	}
-
-	// ROM/RAM Mode Select
-	if address >= 0x6000 && address <= 0x7FFF {
+	case 6, 7:
+		// ROM/RAM Mode Select
 		c.ramMode = (value & 1) == 1
-	}
-
-	// RAM
-	if address >= ExternalRAMStartAddress && address < ExternalRAMEndAddress {
-		// RAM must be enabled before writing to it
+	case 0xA, 0xB:
+		// Write to RAM (A000-BFFF)
+		// Writing to RAM when not enabled does nothing
 		if !c.ramEnabled {
 			return
 		}
-
-		// TODO: compare to numRamBanks
 
 		// In ROM banking mode we only have access to one RAM bank
 		var bank uint8 = 0
@@ -131,19 +129,40 @@ func (c *MemoryBankController1Cartridge) WriteTo(address uint16, value uint8) {
 			bank = c.ramBank
 		}
 
-		// Set the value in the appropriate RAM bank
-		c.ram[bank][address-ExternalRAMStartAddress] = value
+		if c.ramBank < c.numRamBanks {
+			// Set the value in the appropriate RAM bank
+			c.ram[bank][address-ExternalRAMStartAddress] = value
+		}
+	default:
+		// Our cartridge will ignore writes to invalid addresses
+		return
 	}
-
-	// TODO: handle writes to invalid address? - some other emulators just do nothing
 }
 
 // Save cartridge RAM contents to a file
 func (c *MemoryBankController1Cartridge) SaveRAM() {
-
+	if c.numRamBanks == 0 {
+		log.Printf("Cartridge does not have any RAM banks to save\n")
+		return
+	}
+	// Note: saving is enabled here even if the physical cartridge wouldn't have had the battery to support it
+	err := WriteRAMToFile(c.filename, c.ram)
+	if err != nil {
+		log.Printf("Unable save RAM: %v\n", err)
+	}
 }
 
 // Load cartridge RAM from a file
+// TODO: can we use generics here to not duplicate between mbc1 and mbc3?
 func (c *MemoryBankController1Cartridge) LoadRAM() {
+	// If cartridge does not have RAM we will skip any sort of loading
+	if c.numRamBanks == 0 {
+		return
+	}
 
+	err := ReadRAMFromFile(c.filename, c.ram)
+	if err != nil {
+		// We will be permissive here continue running after logging the issue
+		log.Printf("Unable to load RAM from file: %v\n", err)
+	}
 }
