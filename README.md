@@ -13,10 +13,10 @@ GoEmulate is a learning project, and the first emulator I have written. The code
 To Do List
 ----------
 - CPU save states
+- other cartridge types
 - more unit tests
 - better error handling
 - allow loading files from GUI or similar
-- other cartridge types
 - implement serial
 
 Completed Tasks

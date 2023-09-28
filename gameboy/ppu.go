@@ -221,8 +221,6 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 
 		if currentLine >= ScreenHeight+VBlankLines {
 			// We are past the bottom of the screen, so we've now drawn the full frame
-			//
-
 			currentLine = 0
 		}
 
