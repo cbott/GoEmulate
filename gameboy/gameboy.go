@@ -16,8 +16,8 @@ type Gameboy struct {
 	// This is filled in throughout the PPU processes and then displayed
 	ScreenData [ScreenWidth][ScreenHeight][3]uint8
 
-	// scan is the horizontal "position" in clock cycles where the PPU is currently drawing
-	currentScanX int
+	// Scan Cycles tracks the number of cycles elapsed drawing the current frame so far
+	currentScanCycles int
 	// Internal counter to keep track of when the DIV register should increment
 	timerAccumulator int
 	// When halted CPU will not execute instructions except for interrupts
@@ -27,8 +27,9 @@ type Gameboy struct {
 	// Some instructions set interrupt state with a 1 operation delay, these bools track that state
 	pendingInterruptEnable bool
 
-	screenCleared bool
-	debugColors   bool
+	screenCleared  bool
+	displayEnabled bool
+	debugColors    bool
 }
 
 // Create and initialize a Game Boy struct
@@ -101,10 +102,11 @@ func (gb *Gameboy) RunNextFrame() {
 	var totalCycles int
 	var lastTotalCycles int
 
-	if gb.debugColors {
-		// Helps to identify areas of the screen that were not redrawn this frame
-		gb.clearScreen()
-	}
+	// Clear screen and restart rendering at dot zero
+	// A bit of a hack to force display timing to match up perfectly with PPU process
+	gb.clearScreen()
+	// Set flag to resume rendering if we recently enabled the LCD
+	gb.displayEnabled = true
 
 	for totalCycles = 0; totalCycles < CyclesPerFrame; {
 		var operationCycles int

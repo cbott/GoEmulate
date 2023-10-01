@@ -150,15 +150,11 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 	currentLine := gb.memory.get(LY)
 	mode := gb.GetDisplayMode()
 
-	if (gb.memory.get(LCDC) & LCDC_display_enable) == 0 {
+	if (gb.memory.get(LCDC)&LCDC_display_enable) == 0 || !gb.displayEnabled {
 		// LCD is not enabled
-		gb.currentScanX = 0
-		gb.memory.set(LY, 0)
-		// Note: Setting to OAM search will mean we don't trigger an interrupt
-		// when first enabling the LCD, not clear if that's correct
-		gb.SetDisplayMode(DisplayModeOAMSearch)
 		gb.clearScreen()
-
+		// If we re-enable the LCD it still should not start displaying anything until the start of next frame
+		gb.displayEnabled = false
 		return
 	}
 	gb.screenCleared = false
@@ -166,15 +162,17 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 	var newMode uint8
 	var interrupt bool = false
 
+	cyclesThisLine := gb.currentScanCycles % CyclesPerLine
+
 	if currentLine >= ScreenHeight {
 		// Current line is in V-Blank section
 		newMode = DisplayModeVBlank
 		interrupt = (status & STAT_vblank_interrupt) != 0
-	} else if gb.currentScanX <= OAMSearchCycles {
+	} else if cyclesThisLine <= OAMSearchCycles {
 		// Current line is a displayed row, and current scan is in OAM Search section
 		newMode = DisplayModeOAMSearch
 		interrupt = (status & STAT_oam_interrupt) != 0
-	} else if gb.currentScanX <= PixelTransferCycles+OAMSearchCycles {
+	} else if cyclesThisLine <= PixelTransferCycles+OAMSearchCycles {
 		// Current line is a displayed row, and current scan is in Pixel Transfer section
 		newMode = DisplayModePixelTransfer
 		// There are no interrupts triggered on Pixel Transfer mode
@@ -214,23 +212,14 @@ func (gb *Gameboy) RunGraphicsProcess(cycles int) {
 	}
 	gb.memory.set(STAT, status)
 
-	gb.currentScanX += cycles
-	if gb.currentScanX >= CyclesPerLine {
-		// If we get to the end of a line, move Y coordinate down to the next row and start back at the left
-		currentLine++
+	gb.currentScanCycles += cycles
+	newLine := uint8(gb.currentScanCycles / CyclesPerLine)
 
-		if currentLine >= ScreenHeight+VBlankLines {
-			// We are past the bottom of the screen, so we've now drawn the full frame
-			currentLine = 0
-		}
+	// If we get to the end of a line, move Y coordinate down to the next row and start back at the left
+	if newLine != currentLine {
+		gb.memory.set(LY, newLine)
 
-		// The idea here is that we don't set to 0 in case we didn't run this
-		// function right at the end of a row. We don't want to accumulate timing error.
-		gb.currentScanX -= CyclesPerLine
-
-		gb.memory.set(LY, currentLine)
-
-		if currentLine == ScreenHeight {
+		if newLine == ScreenHeight {
 			// The CPU triggers an interrupt when it enters the vblank section
 			gb.SetInterruptRequestFlag(Interrupt_vblank)
 		}
@@ -522,10 +511,16 @@ func (gb *Gameboy) renderLineSprites(lineNumber uint8, bgPriority [ScreenWidth]b
 
 // Clear the screen
 func (gb *Gameboy) clearScreen() {
-	// Check if we have cleared the screen already
+	// Check if we have cleared the screen already, setting every pixel every time is too slow
 	if gb.screenCleared {
 		return
 	}
+
+	gb.currentScanCycles = 0
+	gb.memory.set(LY, 0)
+	// Note: Setting to OAM search will mean we don't trigger an interrupt
+	// when first enabling the LCD, not clear if that's correct
+	gb.SetDisplayMode(DisplayModeOAMSearch)
 
 	// Set every pixel to white, or yellow for debug
 	var blue uint8 = 255
