@@ -2,11 +2,13 @@ package cartridges
 
 // Basic cartridge containing 32KiB ROM from 0000-7FFF
 type ROMOnlyCartridge struct {
-	rom []uint8
+	CartridgeCore
 }
 
 func NewROMOnlyCartridge(data []uint8) *ROMOnlyCartridge {
-	return &ROMOnlyCartridge{rom: data}
+	c := ROMOnlyCartridge{}
+	c.rom = data
+	return &c
 }
 
 func (c *ROMOnlyCartridge) ReadFrom(address uint16) uint8 {

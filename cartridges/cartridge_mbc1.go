@@ -10,31 +10,20 @@ import (
 // OR
 // Up to 512KiB ROM (32 banks) / 32KiB RAM (4 banks)
 type MemoryBankController1Cartridge struct {
-	filename string
-	rom      []uint8
-	ram      [][RAMBankSize]uint8
-
-	// Number of available 16MiB ROM banks we can switch between (2-128)
-	numRomBanks uint8
-	// Number of available 8MiB RAM banks we can switch between (0-4)
-	numRamBanks uint8
-
-	// currently selected ROM bank for 4000-7FFF
-	romBank uint8
-	// currently selected RAM bank for A000-BFFF
-	// used as most significant 2 bits of ROM bank if ramMode is false
-	ramBank uint8
-
-	ramEnabled bool
+	CartridgeCore
+	// ramBank is used as most significant 2 bits of ROM bank if ramMode is false
 
 	// ramMode
 	// false -> ROM Banking Mode, up to 8KiB RAM and 2MiB ROM
 	// true  -> RAM Banking Mode, up to 32KiB RAM and 512KiB ROM
+	// TODO: account for this in save states
 	ramMode bool
 }
 
 func NewMBC1Cartridge(filename string, data []uint8) *MemoryBankController1Cartridge {
-	c := MemoryBankController1Cartridge{rom: data, filename: filename}
+	c := MemoryBankController1Cartridge{}
+	c.rom = data
+	c.filename = filename
 	c.numRomBanks = 1 << (data[ROMSizeAddress] + 1)
 
 	ramSizeKey := data[RAMSizeAddress]
@@ -57,7 +46,7 @@ func (c *MemoryBankController1Cartridge) ReadFrom(address uint16) uint8 {
 
 	// Bank 1 is switched
 	if address < ROMEndAddress {
-		var bank uint8 = c.romBank
+		var bank uint16 = c.romBank
 
 		// ROM bank 0 cannot be selected, hardware will use bank 1 instead
 		// Note: we intentionally do this before adding bits 4/5 below to match hardware behavior
@@ -67,7 +56,7 @@ func (c *MemoryBankController1Cartridge) ReadFrom(address uint16) uint8 {
 
 		if !c.ramMode {
 			// We are in ROM Banking Mode, use ramBank as bits 4 and 5 of bank number
-			bank |= c.ramBank << 5
+			bank |= uint16(c.ramBank << 5)
 		}
 
 		// Mask bank to the number of banks available
@@ -108,7 +97,7 @@ func (c *MemoryBankController1Cartridge) WriteTo(address uint16, value uint8) {
 		c.ramEnabled = (value & 0xF) == 0xA
 	case 2, 3:
 		// ROM Bank Select (2000-3FFF)
-		c.romBank = value & 0b11111
+		c.romBank = uint16(value & 0b11111)
 	case 4, 5:
 		// RAM Bank Select (4000-5FFF)
 		// 0-3, select RAM bank or upper 2 bits of ROM bank
