@@ -8,28 +8,15 @@ import (
 // Memory Bank Controller 5 Cartridge
 // Up to 8MiB ROM (512 banks) / 128KiB RAM (16 banks), optional rumble
 type MemoryBankController5Cartridge struct {
-	filename string
-	rom      []uint8
-	ram      [][RAMBankSize]uint8
-
-	// Number of available 16MiB ROM banks we can switch between (2-512)
-	numRomBanks uint16
-	// Number of available 8MiB RAM banks we can switch between (0-4)
-	numRamBanks uint8
-
-	// Currently selected ROM bank for 4000-7FFF (0-512)
-	romBank uint16
-	// Currently selected RAM bank A000-BFFF (0-15)
-	ramBank uint8
-
-	// Whether RAM reading and writing are enabled
-	ramEnabled bool
+	CartridgeCore
 	// Whether this cartridge supports rumble
 	hasRumble bool
 }
 
 func NewMBC5Cartridge(filename string, data []uint8) *MemoryBankController5Cartridge {
-	c := MemoryBankController5Cartridge{rom: data, filename: filename}
+	c := MemoryBankController5Cartridge{}
+	c.rom = data
+	c.filename = filename
 	c.numRomBanks = 1 << (data[ROMSizeAddress] + 1)
 
 	ramSizeKey := data[RAMSizeAddress]

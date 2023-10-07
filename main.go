@@ -71,6 +71,8 @@ func run() {
 	gb := gameboy.NewGameBoy(!*runBootROM, *useDebugColors)
 	gb.LoadCartridge(cartridges.Make(romFile))
 
+	var savestate *gameboy.SaveState
+
 	picture := &pixel.PictureData{
 		Pix:    make([]color.RGBA, gameboy.ScreenWidth*gameboy.ScreenHeight),
 		Stride: gameboy.ScreenWidth,
@@ -107,6 +109,18 @@ func run() {
 				frameSpeedUp--
 				fmt.Printf("Decreased speed to %v\n", frameSpeedUp)
 			}
+			// Pressing 1 saves the CPU state
+			// Pressing Shift+1 loads the CPU state
+			if win.JustPressed(pixelgl.Key1) {
+				if win.Pressed(pixelgl.KeyLeftShift) || win.Pressed(pixelgl.KeyRightShift) {
+					gameboy.RestoreState(gb, savestate)
+					fmt.Println("Restored State 1")
+				} else {
+					savestate = gameboy.NewSaveState(gb)
+					fmt.Println("Saved State 1")
+				}
+			}
+
 		default:
 		}
 	}

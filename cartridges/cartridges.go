@@ -79,6 +79,41 @@ type Cartridge interface {
 	WriteTo(address uint16, value uint8)
 	LoadRAM()
 	SaveRAM()
+	GetState() ([][RAMBankSize]uint8, uint8, bool, uint16)
+	SetState([][RAMBankSize]uint8, uint8, bool, uint16)
+}
+
+// Common base for all cartridge types defining ROM and RAM banks
+type CartridgeCore struct {
+	filename string
+	rom      []uint8
+	ram      [][RAMBankSize]uint8
+
+	// Number of available 16MiB ROM banks we can switch between
+	numRomBanks uint16
+	// Number of available 8MiB RAM banks we can switch between
+	numRamBanks uint8
+
+	// Currently selected ROM bank for 4000-7FFF
+	romBank uint16
+	// Currently selected RAM bank A000-BFFF
+	ramBank uint8
+
+	// Whether RAM reading and writing are enabled
+	ramEnabled bool
+}
+
+// Return the current state of the cartridge
+func (c CartridgeCore) GetState() ([][RAMBankSize]uint8, uint8, bool, uint16) {
+	return c.ram, c.ramBank, c.ramEnabled, c.romBank
+}
+
+// Set the state of the cartridge
+func (c *CartridgeCore) SetState(ram [][RAMBankSize]uint8, ramBank uint8, ramEnabled bool, romBank uint16) {
+	c.ram = ram
+	c.ramBank = ramBank
+	c.ramEnabled = ramEnabled
+	c.romBank = romBank
 }
 
 // Read a cartridge binary file and return the correct cartridge type containing the file contents

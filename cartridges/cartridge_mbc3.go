@@ -23,30 +23,19 @@ const (
 // Memory Bank Controller 3 Cartridge
 // Up to 2MiB ROM (128 banks) / 32KiB RAM (4 banks), Timer
 type MemoryBankController3Cartridge struct {
-	filename   string
-	rom        []uint8
-	ram        [][RAMBankSize]uint8
+	CartridgeCore
+	// ramEnabled sets whether RAM/RTC reading and writing are enabled
+
 	rtc        [NumRTCBanks]uint8
 	latchedrtc [NumRTCBanks]uint8
-
-	// Number of available 16MiB ROM banks we can switch between (2-512)
-	numRomBanks uint16
-	// Number of available 8MiB RAM banks we can switch between (0-4)
-	numRamBanks uint8
-
-	// Currently selected ROM bank for 4000-7FFF (0-127)
-	romBank uint8
-	// Currently selected RAM bank or RTC register for A000-BFFF (0-3)
-	ramBank uint8
-
-	// Whether RAM/RTC reading and writing are enabled
-	ramEnabled bool
 	// Whether this cartridge supports a real time clock
 	hasRTC bool
 }
 
 func NewMBC3Cartridge(filename string, data []uint8) *MemoryBankController3Cartridge {
-	c := MemoryBankController3Cartridge{rom: data, filename: filename}
+	c := MemoryBankController3Cartridge{}
+	c.rom = data
+	c.filename = filename
 	c.numRomBanks = 1 << (data[ROMSizeAddress] + 1)
 
 	ramSizeKey := data[RAMSizeAddress]
@@ -76,7 +65,7 @@ func (c *MemoryBankController3Cartridge) ReadFrom(address uint16) uint8 {
 
 	// Read from ROM Bank 1 (switched)
 	if address < ROMEndAddress {
-		var bank uint8 = c.romBank
+		var bank uint16 = c.romBank
 
 		// ROM bank 0 cannot be selected, hardware will use bank 1 instead
 		if bank == 0 {
@@ -120,7 +109,7 @@ func (c *MemoryBankController3Cartridge) WriteTo(address uint16, value uint8) {
 		c.ramEnabled = (value & 0xF) == 0xA
 	case 2, 3:
 		// ROM Bank Select (2000-3FFF)
-		c.romBank = value & 0b1111111
+		c.romBank = uint16(value & 0b1111111)
 	case 4, 5:
 		// RAM Bank Select (4000-5FFF)
 		// Can set 0-3 to select RAM bank or 8-C to select a RTC register
