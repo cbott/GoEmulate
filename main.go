@@ -17,6 +17,9 @@ import (
 // initial size of the Game Boy window, overridden by command line flag
 const DefaultScale = 4
 
+// Maximum allowable speed multiplier for emulation
+const MaximumSpeed = 10
+
 func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[gameboy.ScreenWidth][gameboy.ScreenHeight][3]uint8) {
 	for y := 0; y < gameboy.ScreenHeight; y++ {
 		for x := 0; x < gameboy.ScreenWidth; x++ {
@@ -99,7 +102,7 @@ func run() {
 				gb.SaveCartridgeRAM()
 			}
 			// Pressing '+/=' increases speed-up
-			if win.JustPressed(pixelgl.KeyEqual) && frameSpeedUp < 10 {
+			if win.JustPressed(pixelgl.KeyEqual) && frameSpeedUp < MaximumSpeed {
 				// Limit to 10x speed, on my machine we start to drop framerate around 13x
 				frameSpeedUp++
 				fmt.Printf("Increased speed to %v\n", frameSpeedUp)
@@ -113,8 +116,12 @@ func run() {
 			// Pressing Shift+1 loads the CPU state
 			if win.JustPressed(pixelgl.Key1) {
 				if win.Pressed(pixelgl.KeyLeftShift) || win.Pressed(pixelgl.KeyRightShift) {
-					gameboy.RestoreState(gb, savestate)
-					fmt.Println("Restored State 1")
+					err := gameboy.RestoreState(gb, savestate)
+					if err != nil {
+						fmt.Println("Unable to restore state")
+					} else {
+						fmt.Println("Restored State 1")
+					}
 				} else {
 					savestate = gameboy.NewSaveState(gb)
 					fmt.Println("Saved State 1")
