@@ -1,6 +1,10 @@
 package gameboy
 
-import "github.com/cbott/GoEmulate/cartridges"
+import (
+	"errors"
+
+	"github.com/cbott/GoEmulate/cartridges"
+)
 
 type SaveState struct {
 	cpu                    CpuRegisters
@@ -44,7 +48,10 @@ func NewSaveState(gb *Gameboy) *SaveState {
 	return &save
 }
 
-func RestoreState(gb *Gameboy, state *SaveState) {
+func RestoreState(gb *Gameboy, state *SaveState) error {
+	if state == nil {
+		return errors.New("cannot recall gameboy state which is nil")
+	}
 	// Making a copy so we don't mess with the real save state
 	var referenceState SaveState = *state
 
@@ -62,4 +69,6 @@ func RestoreState(gb *Gameboy, state *SaveState) {
 	gb.displayEnabled = referenceState.displayEnabled
 
 	gb.memory.cartridge.SetState(state.ram, state.ramBank, state.ramEnabled, state.romBank)
+
+	return nil
 }
