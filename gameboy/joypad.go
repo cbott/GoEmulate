@@ -1,6 +1,9 @@
 package gameboy
 
-import "github.com/faiface/pixel/pixelgl"
+import (
+	"github.com/gopxl/pixel/v2"
+	"github.com/gopxl/pixel/v2/backends/opengl"
+)
 
 /*
 Joypad inputs start at memory address FF00
@@ -22,19 +25,19 @@ const (
 
 // Button-to-keyboard mapping
 const (
-	BUTTON_DOWN   = pixelgl.KeyDown
-	BUTTON_UP     = pixelgl.KeyUp
-	BUTTON_LEFT   = pixelgl.KeyLeft
-	BUTTON_RIGHT  = pixelgl.KeyRight
-	BUTTON_START  = pixelgl.KeyEnter
-	BUTTON_SELECT = pixelgl.KeyS
-	BUTTON_B      = pixelgl.KeyZ
-	BUTTON_A      = pixelgl.KeyX
+	BUTTON_DOWN   = pixel.KeyDown
+	BUTTON_UP     = pixel.KeyUp
+	BUTTON_LEFT   = pixel.KeyLeft
+	BUTTON_RIGHT  = pixel.KeyRight
+	BUTTON_START  = pixel.KeyEnter
+	BUTTON_SELECT = pixel.KeyS
+	BUTTON_B      = pixel.KeyZ
+	BUTTON_A      = pixel.KeyX
 )
 
 // Update the Joypad button states with what is currently pressed on the keyboard
 // and requests an interrupt if a button just became pressed
-func (gb *Gameboy) ReadKeyboard(pixelWindow *pixelgl.Window) {
+func (gb *Gameboy) ReadKeyboard(pixelWindow *opengl.Window) {
 	// 1=unpressed, 0=pressed
 	// invert at the end so bit operations are easier
 	var state uint8 = 0

@@ -10,8 +10,8 @@ import (
 
 	"github.com/cbott/GoEmulate/cartridges"
 	"github.com/cbott/GoEmulate/gameboy"
-	"github.com/faiface/pixel"
-	"github.com/faiface/pixel/pixelgl"
+	"github.com/gopxl/pixel/v2"
+	"github.com/gopxl/pixel/v2/backends/opengl"
 )
 
 // initial size of the Game Boy window, overridden by command line flag
@@ -20,7 +20,7 @@ const DefaultScale = 4
 // Maximum allowable speed multiplier for emulation
 const MaximumSpeed = 10
 
-func RenderScreen(window *pixelgl.Window, picture *pixel.PictureData, data *[gameboy.ScreenWidth][gameboy.ScreenHeight][3]uint8) {
+func RenderScreen(window *opengl.Window, picture *pixel.PictureData, data *[gameboy.ScreenWidth][gameboy.ScreenHeight][3]uint8) {
 	for y := 0; y < gameboy.ScreenHeight; y++ {
 		for x := 0; x < gameboy.ScreenWidth; x++ {
 			col := data[x][y]
@@ -60,13 +60,13 @@ func run() {
 	}
 
 	var scale float64 = float64(*scaleflag)
-	cfg := pixelgl.WindowConfig{
+	cfg := opengl.WindowConfig{
 		Title:     "Game Boy Emulator",
 		Bounds:    pixel.R(0, 0, gameboy.ScreenWidth*scale, gameboy.ScreenHeight*scale),
 		VSync:     true,
 		Resizable: true,
 	}
-	win, err := pixelgl.NewWindow(cfg)
+	win, err := opengl.NewWindow(cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -98,24 +98,24 @@ func run() {
 			RenderScreen(win, picture, &gb.ScreenData)
 
 			// Pressing 'P' will save RAM contents to a file
-			if win.JustPressed(pixelgl.KeyP) {
+			if win.JustPressed(pixel.KeyP) {
 				gb.SaveCartridgeRAM()
 			}
 			// Pressing '+/=' increases speed-up
-			if win.JustPressed(pixelgl.KeyEqual) && frameSpeedUp < MaximumSpeed {
+			if win.JustPressed(pixel.KeyEqual) && frameSpeedUp < MaximumSpeed {
 				// Limit to 10x speed, on my machine we start to drop framerate around 13x
 				frameSpeedUp++
 				fmt.Printf("Increased speed to %v\n", frameSpeedUp)
 			}
 			// Pressing '-/_' decreases speed-up
-			if win.JustPressed(pixelgl.KeyMinus) && frameSpeedUp > 1 {
+			if win.JustPressed(pixel.KeyMinus) && frameSpeedUp > 1 {
 				frameSpeedUp--
 				fmt.Printf("Decreased speed to %v\n", frameSpeedUp)
 			}
 			// Pressing 1 saves the CPU state
 			// Pressing Shift+1 loads the CPU state
-			if win.JustPressed(pixelgl.Key1) {
-				if win.Pressed(pixelgl.KeyLeftShift) || win.Pressed(pixelgl.KeyRightShift) {
+			if win.JustPressed(pixel.Key1) {
+				if win.Pressed(pixel.KeyLeftShift) || win.Pressed(pixel.KeyRightShift) {
 					err := gameboy.RestoreState(gb, savestate)
 					if err != nil {
 						fmt.Println("Unable to restore state")
@@ -134,5 +134,5 @@ func run() {
 }
 
 func main() {
-	pixelgl.Run(run)
+	opengl.Run(run)
 }
