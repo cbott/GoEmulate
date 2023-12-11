@@ -1,7 +1,7 @@
 # GoEmulate
 Game Boy Emulator in Go
 
-GoEmulate is an emulator for the original Game Boy (DMG) written entirely in Go, utilizing the [pixel](https://github.com/faiface/pixel) library for graphics and [Oto](https://github.com/ebitengine/oto) for sound. The goal of the project is to reach basic emulator functionality with minimal code complexity, and very little focus on UI or useability.
+GoEmulate is an emulator for the original Game Boy (DMG) written entirely in Go, utilizing the [pixel](https://github.com/gopxl/pixel) library for graphics and [Oto](https://github.com/ebitengine/oto) for sound. The goal of the project is to reach basic emulator functionality with minimal code complexity, and very little focus on UI or useability.
 
 Currently no support is planned for GBC/GBA emulation
 
@@ -44,7 +44,7 @@ Key         | Action
 
 Setup
 -----
-Per pixel requirements https://github.com/faiface/pixel#requirements
+Per pixel requirements https://github.com/gopxl/pixel#requirements
 ```
 sudo apt install libgl1-mesa-dev
 sudo apt install xorg-dev
