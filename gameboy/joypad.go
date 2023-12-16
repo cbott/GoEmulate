@@ -1,10 +1,5 @@
 package gameboy
 
-import (
-	"github.com/gopxl/pixel/v2"
-	"github.com/gopxl/pixel/v2/backends/opengl"
-)
-
 /*
 Joypad inputs start at memory address FF00
 
@@ -23,61 +18,60 @@ const (
 	JOYPAD_direction_buttons = 1 << 4
 )
 
-// Button-to-keyboard mapping
-const (
-	BUTTON_DOWN   = pixel.KeyDown
-	BUTTON_UP     = pixel.KeyUp
-	BUTTON_LEFT   = pixel.KeyLeft
-	BUTTON_RIGHT  = pixel.KeyRight
-	BUTTON_START  = pixel.KeyEnter
-	BUTTON_SELECT = pixel.KeyS
-	BUTTON_B      = pixel.KeyZ
-	BUTTON_A      = pixel.KeyX
-)
+// Convenience for passing in current joypad button status
+// TODO: probably a better way to do this
+type ButtonState struct {
+	BtnA, BtnB, BtnSelect, BtnStart   bool
+	BtnRight, BtnLeft, BtnUp, BtnDown bool
+}
 
+// SetButtonState allows an external caller to input the current joypad values into the emulator
+// should we pass these in as 8 bools? that's the most clear
+// could do uint8 but that seems impossible to understand
+// maybe a struct with 8 fields? or dictionary?
 // Update the Joypad button states with what is currently pressed on the keyboard
 // and requests an interrupt if a button just became pressed
-func (gb *Gameboy) ReadKeyboard(pixelWindow *opengl.Window) {
-	// 1=unpressed, 0=pressed
-	// invert at the end so bit operations are easier
-	var state uint8 = 0
-	// Read direction pad
-	if pixelWindow.Pressed(BUTTON_DOWN) {
-		state |= 1 << 7
+func (gb *Gameboy) SetButtonStates(state *ButtonState) {
+	// Gameboy reads values from register as 1=unpressed, 0=pressed
+	// we invert at the end so bit operations are easier
+	var reg uint8 = 0
+	// TODO: ideally we move the bit shift constants somewhere else, like a map or const
+	if state.BtnDown {
+		reg |= 1 << 7
 	}
-	if pixelWindow.Pressed(BUTTON_UP) {
-		state |= 1 << 6
+	if state.BtnUp {
+		reg |= 1 << 6
 	}
-	if pixelWindow.Pressed(BUTTON_LEFT) {
-		state |= 1 << 5
+	if state.BtnLeft {
+		reg |= 1 << 5
 	}
-	if pixelWindow.Pressed(BUTTON_RIGHT) {
-		state |= 1 << 4
+	if state.BtnRight {
+		reg |= 1 << 4
 	}
-	if pixelWindow.Pressed(BUTTON_START) {
-		state |= 1 << 3
+	if state.BtnStart {
+		reg |= 1 << 3
 	}
-	if pixelWindow.Pressed(BUTTON_SELECT) {
-		state |= 1 << 2
+	if state.BtnSelect {
+		reg |= 1 << 2
 	}
-	if pixelWindow.Pressed(BUTTON_B) {
-		state |= 1 << 1
+	if state.BtnB {
+		reg |= 1 << 1
 	}
-	if pixelWindow.Pressed(BUTTON_A) {
-		state |= 1 << 0
+	if state.BtnA {
+		reg |= 1 << 0
 	}
-
-	state = ^state
+	reg = ^reg
 
 	// Perform an interrupt if any button went from unpressed to pressed
 	var doInterrupt bool = false
 	for i := 0; i < 8; i++ {
-		if (gb.memory.ButtonStates&(1<<i) != 0) && (state&(1<<i) == 0) {
+		if (gb.memory.ButtonStates&(1<<i) != 0) && (reg&(1<<i) == 0) {
 			doInterrupt = true
 		}
 	}
 
-	gb.memory.ButtonStates = state
+	// TODO: rethink this variable, at least make it private
+	gb.memory.ButtonStates = reg
 
 	if doInterrupt {
 		// For maximum parity with hardware we should only trigger this if the particular input
