@@ -53,6 +53,7 @@ func RestoreState(gb *Gameboy, state *SaveState) error {
 		return errors.New("cannot recall gameboy state which is nil")
 	}
 	// Making a copy so we don't mess with the real save state
+	// TODO: is this really working? Also should we just pass in by value instead?
 	var referenceState SaveState = *state
 
 	gb.memory.memory = referenceState.memory
