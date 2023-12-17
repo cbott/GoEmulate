@@ -38,8 +38,8 @@ Key         | Action
  P          | Write contents of RAM to file
  \+         | Increase emulation speed (Up to 10x)
  \-         | Decrease emulation speed
- 1          | Save CPU state
- Shift+1    | Recall CPU state
+ 1,2,3      | Save CPU state 1-3
+ Shift+1,2,3| Recall CPU state 1-3
 
 
 Setup

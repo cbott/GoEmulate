@@ -73,7 +73,7 @@ var ramSizeMap = map[uint8]uint16{
 	4: 128,
 }
 
-// define Cartridge interface
+// Cartridge interface represents a game cartridge containing ROM and (optionally) RAM banks
 type Cartridge interface {
 	ReadFrom(address uint16) uint8
 	WriteTo(address uint16, value uint8)

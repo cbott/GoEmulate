@@ -27,16 +27,18 @@ const (
 	KEY_WRITE_RAM  = pixel.KeyP
 	KEY_SPEED_UP   = pixel.KeyEqual
 	KEY_SPEED_DOWN = pixel.KeyMinus
-	KEY_SAVESTATE  = pixel.Key1 // SHIFT + SAVESTATE restores a previously saved state
+	KEY_SAVESTATE1 = pixel.Key1 // SHIFT + SAVESTATE restores a previously saved state
+	KEY_SAVESTATE2 = pixel.Key2
+	KEY_SAVESTATE3 = pixel.Key3
 )
+
+var saveStateKeys = [...]pixel.Button{KEY_SAVESTATE1, KEY_SAVESTATE2, KEY_SAVESTATE3}
 
 // Emulator defines a convenient structure for passing logic core, display, and state information around together
 type Emulator struct {
 	console *gameboy.Gameboy
-	// TODO: the gameboy really needs to manage its own save states
-	window    *opengl.Window
-	savestate *gameboy.SaveState
-	speed     int
+	window  *opengl.Window
+	speed   int
 }
 
 // update runs 1 or more frames worth of CPU cycles on the emulator core (depending on specified speed),
@@ -78,17 +80,26 @@ func update(emulator *Emulator) {
 	}
 
 	// CPU States
-	if emulator.window.JustPressed(KEY_SAVESTATE) {
-		if emulator.window.Pressed(pixel.KeyLeftShift) || emulator.window.Pressed(pixel.KeyRightShift) {
-			err := gameboy.RestoreState(emulator.console, emulator.savestate)
-			if err != nil {
-				fmt.Println("Unable to restore state")
+	for i := 0; i < 3; i++ {
+		if emulator.window.JustPressed(saveStateKeys[i]) {
+			var success bool
+			var action string
+
+			if emulator.window.Pressed(pixel.KeyLeftShift) || emulator.window.Pressed(pixel.KeyRightShift) {
+				// Recall
+				success = emulator.console.RecallState(i)
+				action = "recall"
 			} else {
-				fmt.Println("Restored State 1")
+				// Store
+				success = emulator.console.StoreState(i)
+				action = "store"
 			}
-		} else {
-			emulator.savestate = gameboy.NewSaveState(emulator.console)
-			fmt.Println("Saved State 1")
+
+			if success {
+				fmt.Printf("action %v:%d succeeded\n", action, i+1)
+			} else {
+				fmt.Printf("action %v:%d failed\n", action, i+1)
+			}
 		}
 	}
 }

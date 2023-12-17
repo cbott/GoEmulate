@@ -65,17 +65,6 @@ func run() {
 		default:
 		}
 	}
-
-	// For testing performance, can disable vsync and run this
-	// N := 1000
-	// for !win.Closed() {
-	// 	start := time.Now()
-	// 	for i := 0; i < N; i++ {
-	// 		update(&emulator)
-	// 	}
-	// 	since := time.Since(start).Seconds()
-	// 	fmt.Printf("Time for %d frames: %.4fs (%.1f FPS)\n", N, since, float64(N)/since)
-	// }
 }
 
 func main() {
