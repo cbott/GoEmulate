@@ -2,21 +2,8 @@ package gameboy
 
 import "fmt"
 
-// Opcodes data from https://pastraiser.com/cpu/gameboy/gameboy_opcodes.html
+// Opcodes data from https://izik1.github.io/gbops/index.html
 // and http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf with a few error corrections
-
-// Set a register value equal to current value of PC plus an 8 bit signed immediate value
-func (gb *Gameboy) setSPplusN(reg register16) {
-	var pc int32 = int32(int8(gb.popPC()))
-	var sp int32 = int32(gb.cpu.getRegister16(regSP))
-	gb.cpu.setRegister16(reg, uint16(sp+pc))
-	// Did we overflow the lower nybble?
-	gb.cpu.set_flag(FlagH, (sp&0x000F)+(pc&0x000F) > 0x000F)
-	// Did we overflow the upper nybble?
-	gb.cpu.set_flag(FlagC, (sp&0x00FF)+(pc&0x00FF) > 0x00FF)
-	gb.cpu.set_flag(FlagZ, false)
-	gb.cpu.set_flag(FlagN, false)
-}
 
 // Execute a single opcode and return the number of CPU cycles it took (1MHz CPU cycles)
 func (gb *Gameboy) Opcode(opcode uint8) int {

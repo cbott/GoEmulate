@@ -19,59 +19,34 @@ const (
 )
 
 // Convenience for passing in current joypad button status
-// TODO: probably a better way to do this
 type ButtonState struct {
 	BtnA, BtnB, BtnSelect, BtnStart   bool
 	BtnRight, BtnLeft, BtnUp, BtnDown bool
 }
 
-// SetButtonState allows an external caller to input the current joypad values into the emulator
-// should we pass these in as 8 bools? that's the most clear
-// could do uint8 but that seems impossible to understand
-// maybe a struct with 8 fields? or dictionary?
-// Update the Joypad button states with what is currently pressed on the keyboard
+// SetButtonState sets the state of the Game Boy joypad buttons for the emulator
 // and requests an interrupt if a button just became pressed
 func (gb *Gameboy) SetButtonStates(state *ButtonState) {
 	// Gameboy reads values from register as 1=unpressed, 0=pressed
 	// we invert at the end so bit operations are easier
 	var reg uint8 = 0
-	// TODO: ideally we move the bit shift constants somewhere else, like a map or const
-	if state.BtnDown {
-		reg |= 1 << 7
-	}
-	if state.BtnUp {
-		reg |= 1 << 6
-	}
-	if state.BtnLeft {
-		reg |= 1 << 5
-	}
-	if state.BtnRight {
-		reg |= 1 << 4
-	}
-	if state.BtnStart {
-		reg |= 1 << 3
-	}
-	if state.BtnSelect {
-		reg |= 1 << 2
-	}
-	if state.BtnB {
-		reg |= 1 << 1
-	}
-	if state.BtnA {
-		reg |= 1 << 0
+	for index, element := range []bool{state.BtnA, state.BtnB, state.BtnSelect, state.BtnStart,
+		state.BtnRight, state.BtnLeft, state.BtnUp, state.BtnDown} {
+		if element {
+			reg |= 1 << index
+		}
 	}
 	reg = ^reg
 
 	// Perform an interrupt if any button went from unpressed to pressed
 	var doInterrupt bool = false
 	for i := 0; i < 8; i++ {
-		if (gb.memory.ButtonStates&(1<<i) != 0) && (reg&(1<<i) == 0) {
+		if (gb.memory.buttonStates&(1<<i) != 0) && (reg&(1<<i) == 0) {
 			doInterrupt = true
 		}
 	}
 
-	// TODO: rethink this variable, at least make it private
-	gb.memory.ButtonStates = reg
+	gb.memory.buttonStates = reg
 
 	if doInterrupt {
 		// For maximum parity with hardware we should only trigger this if the particular input
@@ -93,11 +68,11 @@ func (m *Memory) GetP1Value() uint8 {
 	// Fill in the bottom 4 bits with button states
 	var state uint8
 	if p1&JOYPAD_direction_buttons == 0 {
-		state |= ^((m.ButtonStates >> 4) & 0xF)
+		state |= ^((m.buttonStates >> 4) & 0xF)
 	}
 	// If both action and direction buttons are selected we will set the pair as pressed if either is pressed
 	if p1&JOYPAD_action_buttons == 0 {
-		state |= ^(m.ButtonStates & 0xF)
+		state |= ^(m.buttonStates & 0xF)
 	}
 
 	p1 |= (^state) & 0xF

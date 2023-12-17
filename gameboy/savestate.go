@@ -1,11 +1,13 @@
 package gameboy
 
 import (
-	"errors"
-
 	"github.com/cbott/GoEmulate/cartridges"
 )
 
+// Number of distinct save states we will allow storing, arbitrary limit, more would just make the gameboy object larger
+const NumSaveStates = 3
+
+// SaveState holds a snapshot of the current Game Boy state, allowing it to be returned to later
 type SaveState struct {
 	cpu                    CpuRegisters
 	currentScanCycles      int
@@ -27,12 +29,19 @@ type SaveState struct {
 	romBank    uint16
 }
 
-func NewSaveState(gb *Gameboy) *SaveState {
+// StoreState saves the current memory and CPU state to the internal storage array at index i
+// if index falls outside the range 0 <= i < NumSaveStates the operation will be ignored
+// Returns whether the state was successfully stored
+func (gb *Gameboy) StoreState(i int) bool {
+	if i < 0 || i >= NumSaveStates {
+		return false
+	}
+
 	save := SaveState{}
 
 	save.memory = gb.memory.memory
 	save.divAccumulator = gb.memory.divAccumulator
-	save.ButtonStates = gb.memory.ButtonStates
+	save.ButtonStates = gb.memory.buttonStates
 
 	save.cpu = *gb.cpu
 	save.currentScanCycles = gb.currentScanCycles
@@ -45,31 +54,37 @@ func NewSaveState(gb *Gameboy) *SaveState {
 
 	save.ram, save.ramBank, save.ramEnabled, save.romBank = gb.memory.cartridge.GetState()
 
-	return &save
+	gb.savestates[i] = &save
+	return true
 }
 
-func RestoreState(gb *Gameboy, state *SaveState) error {
-	if state == nil {
-		return errors.New("cannot recall gameboy state which is nil")
+// RecallState overwrites the current memory and CPU state with values previously stored at index i with StoreState
+// if index has no previously saved state, the operation will be ignored
+// Returns whether the state was successfully restored
+func (gb *Gameboy) RecallState(i int) bool {
+	if i < 0 || i >= NumSaveStates {
+		return false
 	}
-	// Making a copy so we don't mess with the real save state
-	// TODO: is this really working? Also should we just pass in by value instead?
-	var referenceState SaveState = *state
+	if gb.savestates[i] == nil {
+		return false
+	}
 
-	gb.memory.memory = referenceState.memory
+	var state *SaveState = gb.savestates[i]
+
+	gb.memory.memory = state.memory
 	gb.memory.divAccumulator = state.divAccumulator
-	gb.memory.ButtonStates = state.ButtonStates
+	gb.memory.buttonStates = state.ButtonStates
 
-	gb.cpu = &referenceState.cpu
-	gb.currentScanCycles = referenceState.currentScanCycles
-	gb.timerAccumulator = referenceState.timerAccumulator
-	gb.halted = referenceState.halted
-	gb.interruptMasterEnable = referenceState.interruptMasterEnable
-	gb.pendingInterruptEnable = referenceState.pendingInterruptEnable
-	gb.screenCleared = referenceState.screenCleared
-	gb.displayEnabled = referenceState.displayEnabled
+	gb.cpu = &state.cpu
+	gb.currentScanCycles = state.currentScanCycles
+	gb.timerAccumulator = state.timerAccumulator
+	gb.halted = state.halted
+	gb.interruptMasterEnable = state.interruptMasterEnable
+	gb.pendingInterruptEnable = state.pendingInterruptEnable
+	gb.screenCleared = state.screenCleared
+	gb.displayEnabled = state.displayEnabled
 
 	gb.memory.cartridge.SetState(state.ram, state.ramBank, state.ramEnabled, state.romBank)
 
-	return nil
+	return true
 }

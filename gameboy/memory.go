@@ -24,7 +24,7 @@ type Memory struct {
 	// Internal counter to keep track of when the DIV register should increment
 	divAccumulator int
 	// Stores the state of each joypad button (down/up/left/right/start/select/B/A)
-	ButtonStates uint8
+	buttonStates uint8
 }
 
 // Write a value to memory
@@ -99,7 +99,6 @@ func (m *Memory) get(address uint16) uint8 {
 
 func (m *Memory) Init() {
 	m.bootrom = BootRom
-	// TODO: Having the APU as a member off the memory struct is not ideal
 	m.apu = sound.NewAPU(m.memory[sound.WaveRAMStart:])
 }
 
